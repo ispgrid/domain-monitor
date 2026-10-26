@@ -183,16 +183,39 @@ Your database, settings, domains, users, 2FA and uploaded avatars are kept. Only
 
 **Before you start**
 
+- **Back up your database.** Every method below starts with it; keep the backup until the switch is done and checked.
 - Make sure the site runs **PHP 8.2 or newer** (`php -v`, or your hosting control panel). PHP 8.1 is not supported.
 - Find the folder your site is installed in: the one that contains `.env`, `app` and `public`. The steps call it `domain-monitor` and its parent folder `/var/www` or `C:\laragon\www`; use your own names.
 - Have your admin login ready for the last step.
 
 Then follow the steps for your setup:
 
+- [Installed with git clone](#installed-with-git-clone) (most installs)
 - [Linux server (SSH)](#linux-server-ssh)
 - [Windows server](#windows-server)
 - [Shared hosting (cPanel and similar)](#shared-hosting-cpanel-and-similar)
-- [Installed with git clone](#installed-with-git-clone)
+
+### Installed with git clone
+
+Most installs were made with `git clone`. If yours was, and you haven't changed the code, the switch is a few commands. They work the same in a Linux shell and in Windows PowerShell.
+
+1. Back up the database (database name and user are in `.env`):
+   ```bash
+   mysqldump -u DB_USERNAME -p DB_DATABASE > domain-monitor-backup.sql
+   ```
+   In Windows PowerShell use `--result-file=domain-monitor-backup.sql` instead of `> domain-monitor-backup.sql`. On shared hosting, export the database from phpMyAdmin.
+2. Point the install at this fork and pull the latest code:
+   ```bash
+   cd domain-monitor
+   git rev-parse --short HEAD
+   git remote set-url origin https://github.com/ispgrid/domain-monitor.git
+   git pull --ff-only origin main
+   composer update --no-dev
+   ```
+   Note the commit printed by `git rev-parse`; you need it to undo the switch. Use `composer update`, not `composer install`: the old `composer.lock` is kept outside git and still lists the 1.1.x dependency versions.
+3. [Finish in the browser](#finish-in-the-browser).
+
+If `git pull` refuses because of local changes, use the steps for your platform below instead.
 
 ### Linux server (SSH)
 
@@ -284,19 +307,6 @@ These steps use cPanel names. Plesk and DirectAdmin have the same tools (databas
      Zip the `vendor` folder, upload the zip into `domain-monitor` on the host and **Extract** it there.
 8. [Finish in the browser](#finish-in-the-browser).
 
-### Installed with git clone
-
-If your install is a `git clone` with no local changes, point it at this fork and pull:
-
-```bash
-cd domain-monitor
-git remote set-url origin https://github.com/ispgrid/domain-monitor.git
-git pull --ff-only origin main
-composer update --no-dev
-```
-
-Use `composer update`, not `composer install`: the old `composer.lock` is kept outside git and still lists the 1.1.x dependency versions. If `git pull` refuses because of local changes, use the steps for your platform above instead. Then [finish in the browser](#finish-in-the-browser).
-
 ### Finish in the browser
 
 1. Log in to your site as an admin.
@@ -305,7 +315,12 @@ Use `composer update`, not `composer install`: the old `composer.lock` is kept o
 
 Cron jobs keep working because the folder path has not changed. When everything works, delete `domain-monitor-old` and the downloaded zip. Keep the database backup for a while.
 
-If something goes wrong, delete the new `domain-monitor` folder, rename `domain-monitor-old` back to `domain-monitor` and restore the database backup.
+If something goes wrong, restore the database backup, then put the old files back:
+
+- **git clone:** `git remote set-url origin https://github.com/Hosteroid/domain-monitor.git`, `git reset --hard <commit you noted>`, then `composer update --no-dev`.
+- **Other methods:** delete the new `domain-monitor` folder and rename `domain-monitor-old` back to `domain-monitor`.
+
+To restore the backup on the command line (Linux or Windows): `mysql -u DB_USERNAME -p DB_DATABASE -e "source domain-monitor-backup.sql"`, or import the file in phpMyAdmin.
 
 ## 🔧 Configuration
 
