@@ -5,6 +5,13 @@ All notable changes to Domain Monitor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Fork Maintenance** - Project is now maintained as the [ispgrid fork](https://github.com/ispgrid/domain-monitor) of [Hosteroid/domain-monitor](https://github.com/Hosteroid/domain-monitor)
+- **Updater Source** - Built-in updater checks releases and commits on `ispgrid/domain-monitor` instead of the original repository
+- **Project Links** - README, CONTRIBUTING, issue templates, Docker bootstrap, composer metadata and in-app GitHub links point to the fork; original authorship credited in README and composer authors
+
 ## [1.1.5] - 2026-03-08
 
 ### Added

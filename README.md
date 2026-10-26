@@ -2,6 +2,8 @@
 
 > A powerful, self-hosted domain expiration monitoring system with multi-channel notifications
 
+> **Fork notice:** this is the [ispgrid](https://github.com/ispgrid) fork of [Hosteroid/domain-monitor](https://github.com/Hosteroid/domain-monitor). See [About This Fork](#-about-this-fork).
+
 [![PHP Version](https://img.shields.io/badge/PHP-8.1%2B-blue.svg)](https://www.php.net/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
@@ -62,7 +64,7 @@ The application includes built-in authentication with secure practices:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/Hosteroid/domain-monitor.git
+git clone https://github.com/ispgrid/domain-monitor.git
 cd domain-monitor
 ```
 
@@ -480,14 +482,14 @@ Domain Monitor/
 We welcome bug reports and feature requests! Please use GitHub Issues:
 
 ### 🐞 Report a Bug
-Found a bug? [Open an issue](https://github.com/Hosteroid/domain-monitor/issues/new?template=bug_report.md) with:
+Found a bug? [Open an issue](https://github.com/ispgrid/domain-monitor/issues/new?template=bug_report.md) with:
 - Clear description of the issue
 - Steps to reproduce
 - Expected vs actual behavior
 - Environment details (PHP version, OS, etc.)
 
 ### 💡 Request a Feature
-Have an idea? [Submit a feature request](https://github.com/Hosteroid/domain-monitor/issues/new?template=feature_request.md) with:
+Have an idea? [Submit a feature request](https://github.com/ispgrid/domain-monitor/issues/new?template=feature_request.md) with:
 - Clear description of the feature
 - Use case and benefits
 - Any implementation ideas
@@ -531,50 +533,34 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📧 Support & Community
 
-- 💬 **Discussions:** [GitHub Discussions](https://github.com/Hosteroid/domain-monitor/discussions)
-- 🐛 **Issues:** [Bug Tracker](https://github.com/Hosteroid/domain-monitor/issues)
-- 📖 **Documentation:** [Wiki](https://github.com/Hosteroid/domain-monitor/wiki)
+- 🐛 **Issues:** [Bug Tracker](https://github.com/ispgrid/domain-monitor/issues)
+- 📖 **Documentation:** this README and [CHANGELOG.md](CHANGELOG.md)
 - ⭐ **Star the project** if you find it useful!
 
-## 💼 Created & Sponsored By
+## 🍴 About This Fork
 
-<div align="center">
-
-### [Hosteroid - Premium Hosting Solutions](https://www.hosteroid.uk)
-
-This project is proudly created and maintained by **Hosteroid**, a leading provider of premium hosting solutions.
-
-[![Hosteroid](https://img.shields.io/badge/Powered%20by-Hosteroid-blue?style=for-the-badge)](https://www.hosteroid.uk)
-
-**Services:** Web Hosting • VPS • Dedicated Servers • Domain Registration
-
-🌐 **Website:** [hosteroid.uk](https://www.hosteroid.uk)  
-📧 **Contact:** [support@hosteroid.uk](mailto:support@hosteroid.uk)
-
-</div>
-
----
+This is an actively maintained fork of [Hosteroid/domain-monitor](https://github.com/Hosteroid/domain-monitor), maintained by [ispgrid](https://github.com/ispgrid). Please report issues with this fork here rather than to the original project.
 
 ## 🙏 Acknowledgments
 
-- Created by [Hosteroid](https://www.hosteroid.uk)
+- Originally created by [Hosteroid](https://www.hosteroid.uk) ([Hosteroid/domain-monitor](https://github.com/Hosteroid/domain-monitor))
 - WHOIS/RDAP data from [IANA](https://www.iana.org/)
 - Built with modern PHP and love ❤️
 
 ## 📊 Project Stats
 
-![GitHub stars](https://img.shields.io/github/stars/Hosteroid/domain-monitor?style=social)
-![GitHub forks](https://img.shields.io/github/forks/Hosteroid/domain-monitor?style=social)
-![GitHub issues](https://img.shields.io/github/issues/Hosteroid/domain-monitor)
-![GitHub pull requests](https://img.shields.io/github/issues-pr/Hosteroid/domain-monitor)
+![GitHub stars](https://img.shields.io/github/stars/ispgrid/domain-monitor?style=social)
+![GitHub forks](https://img.shields.io/github/forks/ispgrid/domain-monitor?style=social)
+![GitHub issues](https://img.shields.io/github/issues/ispgrid/domain-monitor)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/ispgrid/domain-monitor)
 
 ---
 
 <div align="center">
 
-**Made with ❤️ by [Hosteroid](https://www.hosteroid.uk)**
+**Maintained by [ispgrid](https://github.com/ispgrid) • Originally created by [Hosteroid](https://www.hosteroid.uk)**
 
-[Report Bug](https://github.com/Hosteroid/domain-monitor/issues) • [Request Feature](https://github.com/Hosteroid/domain-monitor/issues) • [Visit Hosteroid](https://www.hosteroid.uk)
+[Report Bug](https://github.com/ispgrid/domain-monitor/issues/new?template=bug_report.md) • [Request Feature](https://github.com/ispgrid/domain-monitor/issues/new?template=feature_request.md)
 
 </div>
 

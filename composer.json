@@ -1,21 +1,27 @@
 {
-    "name": "hosteroid/domain-monitor",
+    "name": "ispgrid/domain-monitor",
     "description": "A powerful, self-hosted domain expiration monitoring system with multi-channel notifications",
     "type": "project",
     "license": "MIT",
     "keywords": ["domain", "monitoring", "whois", "rdap", "notifications", "expiration", "alerts", "telegram", "discord", "slack"],
-    "homepage": "https://github.com/Hosteroid/domain-monitor",
+    "homepage": "https://github.com/ispgrid/domain-monitor",
     "authors": [
+        {
+            "name": "ispgrid",
+            "homepage": "https://github.com/ispgrid",
+            "role": "Maintainer"
+        },
         {
             "name": "Hosteroid",
             "email": "support@hosteroid.uk",
-            "homepage": "https://hosteroid.uk"
+            "homepage": "https://hosteroid.uk",
+            "role": "Original author"
         }
     ],
     "support": {
-        "issues": "https://github.com/Hosteroid/domain-monitor/issues",
-        "source": "https://github.com/Hosteroid/domain-monitor",
-        "docs": "https://github.com/Hosteroid/domain-monitor/wiki"
+        "issues": "https://github.com/ispgrid/domain-monitor/issues",
+        "source": "https://github.com/ispgrid/domain-monitor",
+        "docs": "https://github.com/ispgrid/domain-monitor#readme"
     },
     "require": {
         "php": ">=8.1",

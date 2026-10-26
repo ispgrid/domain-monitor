@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ### --- CONFIG ---
-GIT_URL="${GIT_URL:-https://github.com/Hosteroid/domain-monitor.git}"
+GIT_URL="${GIT_URL:-https://github.com/ispgrid/domain-monitor.git}"
 APP_ENV_DEFAULT="${APP_ENV:-production}"
 
 # Always treat the CURRENT directory as project root
