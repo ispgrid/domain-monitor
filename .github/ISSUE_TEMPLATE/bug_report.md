@@ -46,7 +46,7 @@ Paste error logs here
 ```
 
 ## ✔️ Checklist
-- [ ] I have checked the [documentation](https://github.com/Hosteroid/domain-monitor/wiki)
+- [ ] I have checked the [documentation](https://github.com/ispgrid/domain-monitor#readme)
 - [ ] I have searched for similar issues
 - [ ] I have provided all required information
 - [ ] I can reproduce this bug consistently

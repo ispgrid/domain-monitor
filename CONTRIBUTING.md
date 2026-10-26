@@ -53,7 +53,7 @@ Use our [Feature Request Template](.github/ISSUE_TEMPLATE/feature_request.md).
 
 1. **Fork the repository**
    ```bash
-   git clone https://github.com/Hosteroid/domain-monitor.git
+   git clone https://github.com/ispgrid/domain-monitor.git
    cd domain-monitor
    ```
 
@@ -290,9 +290,8 @@ Contributors are recognized in:
 
 ## 📞 Getting Help
 
-- 💬 [GitHub Discussions](https://github.com/Hosteroid/domain-monitor/discussions) - Ask questions
-- 🐛 [Issues](https://github.com/Hosteroid/domain-monitor/issues) - Report bugs
-- 📖 [Wiki](https://github.com/Hosteroid/domain-monitor/wiki) - Documentation
+- 🐛 [Issues](https://github.com/ispgrid/domain-monitor/issues) - Report bugs and ask questions
+- 📖 [README](README.md) - Documentation
 
 ## 📋 Project Priorities
 
@@ -313,7 +312,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full roadmap.
 
 **Thank you for contributing to Domain Monitor!** 🚀
 
-A project by [Hosteroid](https://www.hosteroid.uk) - Premium Hosting Solutions
+Maintained by [ispgrid](https://github.com/ispgrid) • Originally created by [Hosteroid](https://www.hosteroid.uk)
 
 </div>
 

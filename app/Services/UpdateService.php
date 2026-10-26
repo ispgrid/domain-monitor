@@ -7,7 +7,7 @@ use GuzzleHttp\Client;
 
 class UpdateService
 {
-    private const GITHUB_REPO = 'Hosteroid/domain-monitor';
+    private const GITHUB_REPO = 'ispgrid/domain-monitor';
     private const GITHUB_API_BASE = 'https://api.github.com';
     private const CACHE_TTL_HOURS = 1;
 
