@@ -75,6 +75,10 @@
                     <i class="fas fa-key w-5 mr-3 text-sm"></i>
                     <span>Two-Factor Auth</span>
                 </button>
+                <button onclick="showSection('passkeys')" id="nav-passkeys" class="nav-item w-full flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors mb-1">
+                    <i class="fas fa-fingerprint w-5 mr-3 text-sm"></i>
+                    <span>Passkeys</span>
+                </button>
                 <button onclick="showSection('sessions')" id="nav-sessions" class="nav-item w-full flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors mb-1">
                     <i class="fas fa-laptop w-5 mr-3 text-sm"></i>
                     <span>Active Sessions</span>
@@ -483,6 +487,111 @@
             </div>
         </div>
 
+        <!-- Passkeys Section -->
+        <div id="section-passkeys" class="content-section hidden">
+            <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Passkeys</h3>
+                    <p class="text-sm text-gray-600 dark:text-slate-400 mt-1">Sign in with your fingerprint, face, device PIN or security key instead of a password</p>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    {% if not passkeysEnabled %}
+                        <div class="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg p-4">
+                            <div class="flex items-center">
+                                <i class="fas fa-ban text-gray-400 dark:text-slate-500 text-xl mr-3"></i>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white">Passkeys Disabled</p>
+                                    <p class="text-sm text-gray-600 dark:text-slate-400 mt-1">Passkeys have been disabled by the administrator.</p>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div id="passkeyUnsupported" class="hidden bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg p-4">
+                            <p class="text-sm text-amber-800 dark:text-amber-300">
+                                <i class="fas fa-exclamation-triangle mr-1"></i>
+                                This browser can't use passkeys here. Passkeys need a modern browser and an HTTPS address (or localhost).
+                            </p>
+                        </div>
+
+                        <div id="passkeyAddError" class="hidden bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg p-3">
+                            <p class="text-sm text-red-700 dark:text-red-400">
+                                <i class="fas fa-exclamation-circle mr-1"></i>
+                                <span id="passkeyAddErrorText"></span>
+                            </p>
+                        </div>
+
+                        <form id="passkeyAddForm" onsubmit="addPasskey(event)" class="flex flex-col sm:flex-row gap-3">
+                            <input type="text" id="passkeyName" maxlength="100"
+                                   placeholder="Name, e.g. Work laptop or YubiKey"
+                                   class="flex-1 px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                            <button type="submit" id="passkeyAddButton" class="inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white text-sm rounded-lg hover:bg-primary-dark transition-colors font-medium">
+                                <i class="fas fa-plus mr-2"></i>
+                                Add Passkey
+                            </button>
+                        </form>
+                    {% endif %}
+
+                    {% if passkeys is not empty %}
+                        <div class="space-y-3">
+                            {% for passkey in passkeys %}
+                                <div class="flex items-start justify-between p-4 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg">
+                                    <div class="flex items-start space-x-3 flex-1 min-w-0">
+                                        <div class="w-10 h-10 bg-teal-100 dark:bg-teal-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                                            <i class="fas fa-fingerprint text-teal-600 dark:text-teal-400"></i>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <h4 id="passkey-name-{{ passkey.id }}" class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ passkey.name }}</h4>
+                                            <form id="passkey-rename-{{ passkey.id }}" method="POST" action="/profile/passkeys/{{ passkey.id }}/rename" class="hidden flex items-center gap-2">
+                                                {{ csrf_field() }}
+                                                <input type="text" name="name" value="{{ passkey.name }}" maxlength="100" required
+                                                       class="flex-1 min-w-0 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white">
+                                                <button type="submit" class="px-2.5 py-1 bg-primary text-white text-xs rounded hover:bg-primary-dark">Save</button>
+                                                <button type="button" onclick="toggleRename({{ passkey.id }})" class="px-2.5 py-1 text-xs text-gray-600 dark:text-slate-300">Cancel</button>
+                                            </form>
+                                            <div class="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-slate-400 mt-1">
+                                                <span title="{{ passkey.created_at|date('M j, Y H:i') }}">
+                                                    <i class="fas fa-plus-circle mr-1"></i>
+                                                    Added {{ passkey.created_at|date('M j, Y') }}
+                                                </span>
+                                                <span>
+                                                    <i class="fas fa-clock mr-1"></i>
+                                                    {% if passkey.last_used_at %}Last used {{ passkey.last_used_at|date('M j, Y H:i') }}{% else %}Never used{% endif %}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2 ml-3">
+                                        <button type="button" onclick="toggleRename({{ passkey.id }})" class="flex items-center justify-center w-8 h-8 bg-gray-200 dark:bg-slate-600 text-gray-600 dark:text-slate-300 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-500 transition-colors" title="Rename passkey">
+                                            <i class="fas fa-pen text-xs"></i>
+                                        </button>
+                                        <form method="POST" action="/profile/passkeys/{{ passkey.id }}/delete" onsubmit="return confirmSubmit(event, 'Remove this passkey? You will no longer be able to sign in with it.', { title: 'Remove Passkey', icon: 'fa-fingerprint text-red-500' })">
+                                            {{ csrf_field() }}
+                                            <button type="submit" class="flex items-center justify-center w-8 h-8 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-600 hover:text-white dark:hover:bg-red-600 transition-colors" title="Remove passkey">
+                                                <i class="fas fa-trash-alt text-xs"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% elseif passkeysEnabled %}
+                        <div class="text-center py-6">
+                            <i class="fas fa-fingerprint text-gray-300 dark:text-slate-600 text-4xl mb-3"></i>
+                            <p class="text-sm text-gray-600 dark:text-slate-400">No passkeys yet</p>
+                        </div>
+                    {% endif %}
+
+                    <div class="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-lg p-3">
+                        <p class="text-xs text-gray-600 dark:text-slate-400">
+                            <i class="fas fa-info-circle text-blue-500 dark:text-blue-400 mr-1"></i>
+                            A passkey sign-in skips the 2FA code, because your device already checks your fingerprint, face or PIN. Your password keeps working. Passkeys only work on the address you add them on ({{ passkeyRpId }}).
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Active Sessions Section -->
         <div id="section-sessions" class="content-section hidden">
             <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
@@ -703,7 +812,7 @@ function showSection(section) {
 
 document.addEventListener('DOMContentLoaded', function() {
     const hash = window.location.hash.substring(1);
-    const validSections = ['profile', 'security', 'twofactor', 'sessions'{% if user.role != 'admin' %}, 'danger'{% endif %}];
+    const validSections = ['profile', 'security', 'twofactor', 'passkeys', 'sessions'{% if user.role != 'admin' %}, 'danger'{% endif %}];
     
     if (hash && validSections.includes(hash)) {
         showSection(hash);
@@ -728,7 +837,37 @@ function hideDisable2FAModal() {
     document.getElementById('disable2FAModal').classList.add('hidden');
     document.getElementById('disable2FAForm').reset();
 }
+
+function toggleRename(id) {
+    document.getElementById('passkey-name-' + id).classList.toggle('hidden');
+    document.getElementById('passkey-rename-' + id).classList.toggle('hidden');
+}
 </script>
+{% if passkeysEnabled %}
+<script src="/assets/passkeys.js?v={{ appVersion }}"></script>
+<script>
+if (!Passkeys.isSupported()) {
+    document.getElementById('passkeyUnsupported').classList.remove('hidden');
+    document.getElementById('passkeyAddButton').disabled = true;
+    document.getElementById('passkeyAddButton').classList.add('opacity-50', 'cursor-not-allowed');
+}
+
+async function addPasskey(event) {
+    event.preventDefault();
+    const button = document.getElementById('passkeyAddButton');
+    document.getElementById('passkeyAddError').classList.add('hidden');
+    button.disabled = true;
+    try {
+        await Passkeys.register(document.getElementById('passkeyName').value);
+    } catch (error) {
+        document.getElementById('passkeyAddErrorText').textContent = Passkeys.errorMessage(error);
+        document.getElementById('passkeyAddError').classList.remove('hidden');
+    } finally {
+        button.disabled = false;
+    }
+}
+</script>
+{% endif %}
 
 <!-- Disable 2FA Modal -->
 <div id="disable2FAModal" class="hidden fixed inset-0 bg-gray-600/50 dark:bg-black/60 overflow-y-auto h-full w-full z-50">

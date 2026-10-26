@@ -42,7 +42,8 @@ class AuthController extends Controller
         $this->view('auth/login', [
             'title' => 'Login',
             'registrationEnabled' => $registrationEnabled,
-            'captchaSettings' => $captchaSettings
+            'captchaSettings' => $captchaSettings,
+            'passkeysEnabled' => (new \App\Services\PasskeyService())->isEnabled()
         ]);
     }
 
@@ -724,6 +725,13 @@ class AuthController extends Controller
     private function createRememberToken($userId)
     {
         try {
+            // After session_regenerate_id() the new session row is only saved at the end of the
+            // request, so save it now: the token references it
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_write_close();
+                session_start();
+            }
+
             $token = bin2hex(random_bytes(32));
             $expiresAt = date('Y-m-d H:i:s', strtotime('+30 days'));
             $sessionId = session_id();

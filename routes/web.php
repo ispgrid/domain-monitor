@@ -18,6 +18,7 @@ use App\Controllers\ErrorLogController;
 use App\Controllers\TwoFactorController;
 use App\Controllers\TagController;
 use App\Controllers\UpdateController;
+use App\Controllers\PasskeyController;
 
 $router = Application::$router;
 
@@ -32,6 +33,8 @@ $router->post('/install/update', [InstallerController::class, 'runUpdate']);
 // Authentication routes (public)
 $router->get('/login', [AuthController::class, 'showLogin']);
 $router->post('/login', [AuthController::class, 'login']);
+$router->post('/login/passkey/options', [PasskeyController::class, 'loginOptions']);
+$router->post('/login/passkey', [PasskeyController::class, 'login']);
 $router->get('/logout', [AuthController::class, 'logout']);
 $router->get('/register', [AuthController::class, 'showRegister']);
 $router->post('/register', [AuthController::class, 'register']);
@@ -170,6 +173,12 @@ $router->post('/profile/logout-other-sessions', [ProfileController::class, 'logo
 $router->post('/profile/logout-session/{sessionId}', [ProfileController::class, 'logoutSession']);
 $router->post('/profile/upload-avatar', [ProfileController::class, 'uploadAvatar']);
 $router->post('/profile/delete-avatar', [ProfileController::class, 'deleteAvatar']);
+
+// Passkeys (protected)
+$router->post('/profile/passkeys/options', [PasskeyController::class, 'registerOptions']);
+$router->post('/profile/passkeys', [PasskeyController::class, 'register']);
+$router->post('/profile/passkeys/{id}/rename', [PasskeyController::class, 'rename']);
+$router->post('/profile/passkeys/{id}/delete', [PasskeyController::class, 'delete']);
 
 // Two-Factor Authentication management (protected)
 $router->get('/2fa/setup', [TwoFactorController::class, 'setup']);

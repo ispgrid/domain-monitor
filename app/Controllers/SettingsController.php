@@ -602,12 +602,13 @@ class SettingsController extends Controller
             $twoFactorSettings = [
                 'two_factor_policy' => $twoFactorPolicy,
                 'two_factor_rate_limit_minutes' => $rateLimitMinutes,
-                'two_factor_email_code_expiry_minutes' => $emailCodeExpiryMinutes
+                'two_factor_email_code_expiry_minutes' => $emailCodeExpiryMinutes,
+                'passkeys_enabled' => isset($_POST['passkeys_enabled']) ? '1' : '0'
             ];
 
             $this->settingModel->updateTwoFactorSettings($twoFactorSettings);
             
-            $_SESSION['success'] = 'Two-Factor Authentication settings updated successfully';
+            $_SESSION['success'] = 'Two-factor and passkey settings updated successfully';
             $this->redirect('/settings#security');
 
         } catch (\Exception $e) {

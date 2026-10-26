@@ -56,6 +56,7 @@ The application includes built-in authentication with secure practices:
 - 💉 **SQL Injection Protection** - All queries use prepared statements
 - 🔒 **One-time Credentials** - Admin password shown only once during setup
 - 🍪 **Secure Remember Me** - Cryptographically secure 30-day tokens linked to sessions
+- 👆 **Passkeys** - Sign in with a fingerprint, face, device PIN or security key (Profile → Passkeys). Needs HTTPS, and a passkey only works on the address it was added on. Admins can turn passkeys off in Settings → Security
 
 ⚠️ **Important:** Save your admin password during installation - it won't be shown again!
 

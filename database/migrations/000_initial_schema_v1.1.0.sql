@@ -99,6 +99,22 @@ CREATE TABLE IF NOT EXISTS two_factor_verification_attempts (
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Passkeys (WebAuthn credentials)
+CREATE TABLE IF NOT EXISTS user_passkeys (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    credential_id VARCHAR(512) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    user_handle VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    public_key TEXT NOT NULL,
+    sign_count INT UNSIGNED NOT NULL DEFAULT 0,
+    name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_used_at TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY uniq_credential_id (credential_id),
+    INDEX idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Two-factor authentication email codes table
 CREATE TABLE IF NOT EXISTS two_factor_email_codes (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -426,7 +442,7 @@ INSERT INTO settings (setting_key, setting_value, `type`, `description`) VALUES
 ('app_name', 'Domain Monitor', 'string', 'Application name'),
 ('app_url', 'http://localhost:8000', 'string', 'Application URL'),
 ('app_timezone', 'UTC', 'string', 'Application timezone'),
-('app_version', '1.2.7', 'string', 'Application version number'),
+('app_version', '1.3.0', 'string', 'Application version number'),
 
 -- Email settings
 ('mail_host', 'smtp.mailtrap.io', 'string', 'SMTP server host'),
@@ -457,6 +473,7 @@ INSERT INTO settings (setting_key, setting_value, `type`, `description`) VALUES
 ('two_factor_policy', 'optional', 'string', '2FA policy: disabled, optional, or required'),
 ('two_factor_rate_limit_minutes', '15', 'string', 'Rate limit for 2FA attempts in minutes'),
 ('two_factor_email_code_expiry_minutes', '10', 'string', 'Email code expiry time in minutes'),
+('passkeys_enabled', '1', 'boolean', 'Allow users to sign in with passkeys'),
 
 -- User isolation settings
 ('user_isolation_mode', 'shared', 'string', 'User data visibility mode: shared (all users see all data) or isolated (users see only their own data)'),

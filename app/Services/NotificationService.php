@@ -609,6 +609,18 @@ class NotificationService
     /**
      * Create welcome notification for new users/fresh install (in-app)
      */
+    public function notifyPasskeyAdded(int $userId, string $passkeyName): void
+    {
+        $notificationModel = new \App\Models\Notification();
+        $notificationModel->createNotification(
+            $userId,
+            'passkey_added',
+            'Passkey Added',
+            "A passkey named \"{$passkeyName}\" was added to your account. If this wasn't you, remove it in your profile and change your password.",
+            null
+        );
+    }
+
     public function notifyWelcome(int $userId, string $username): void
     {
         $notificationModel = new \App\Models\Notification();

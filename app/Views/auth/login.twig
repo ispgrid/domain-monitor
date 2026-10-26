@@ -52,8 +52,9 @@
                 type="text" 
                 id="username" 
                 name="username" 
-                required 
+                required
                 autofocus
+                autocomplete="{{ (passkeysEnabled ?? false) ? 'username webauthn' : 'username' }}"
                 class="w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors text-sm"
                 placeholder="Enter your username or email">
         </div>
@@ -87,8 +88,9 @@
     {# Remember Me #}
     <div class="flex items-center justify-between">
         <label class="flex items-center cursor-pointer">
-            <input 
-                type="checkbox" 
+            <input
+                type="checkbox"
+                id="remember"
                 name="remember"
                 value="1"
                 class="w-4 h-4 text-primary border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-primary">
@@ -110,6 +112,31 @@
         Sign In
     </button>
 </form>
+
+{% if passkeysEnabled ?? false %}
+{# Passkey Sign-in (shown by script when the browser supports it) #}
+<div id="passkeyLogin" class="hidden">
+    <div class="flex items-center my-5">
+        <div class="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+        <span class="mx-3 text-xs text-gray-400 dark:text-gray-500 uppercase">or</span>
+        <div class="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+    </div>
+    <div id="passkeyError" class="hidden mb-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 p-3 rounded-lg">
+        <div class="flex items-center">
+            <i class="fas fa-exclamation-circle text-red-500 dark:text-red-400 mr-2"></i>
+            <span id="passkeyErrorText" class="text-sm text-red-700 dark:text-red-300"></span>
+        </div>
+    </div>
+    <button
+        type="button"
+        id="passkeyButton"
+        onclick="passkeySignIn()"
+        class="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 py-2.5 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center text-sm">
+        <i class="fas fa-fingerprint mr-2"></i>
+        Sign in with a passkey
+    </button>
+</div>
+{% endif %}
 
 {% if registrationEnabled|default(false) %}
 {# Sign Up Link #}
@@ -141,4 +168,46 @@
         }
     }
 </script>
+{% if passkeysEnabled ?? false %}
+<script src="/assets/passkeys.js?v={{ appVersion }}"></script>
+<script>
+    function showPasskeyError(error) {
+        document.getElementById('passkeyErrorText').textContent = Passkeys.errorMessage(error);
+        document.getElementById('passkeyError').classList.remove('hidden');
+    }
+
+    async function passkeySignIn() {
+        const button = document.getElementById('passkeyButton');
+        document.getElementById('passkeyError').classList.add('hidden');
+        button.disabled = true;
+        try {
+            await Passkeys.signIn({ remember: () => document.getElementById('remember').checked });
+        } catch (error) {
+            showPasskeyError(error);
+            startPasskeyAutofill();
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    // Offer saved passkeys in the username field's autofill list
+    async function startPasskeyAutofill() {
+        if (!(await Passkeys.conditionalAvailable())) {
+            return;
+        }
+        try {
+            await Passkeys.signIn({ conditional: true, remember: () => document.getElementById('remember').checked });
+        } catch (error) {
+            if (!error.silent) {
+                showPasskeyError(error);
+            }
+        }
+    }
+
+    if (Passkeys.isSupported()) {
+        document.getElementById('passkeyLogin').classList.remove('hidden');
+        startPasskeyAutofill();
+    }
+</script>
+{% endif %}
 {% endblock %}

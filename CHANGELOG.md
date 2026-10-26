@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-26
+
+### Added
+- **Passkeys** - Sign in with a fingerprint, face, device PIN or security key instead of a password. Add, rename and remove passkeys in Profile → Passkeys, then use "Sign in with a passkey" on the login page (or pick one from the username field's autofill). A passkey sign-in skips the 2FA code, since the device already verifies you; passwords keep working. Admins can turn passkeys off in Settings → Security. Passkeys need HTTPS (or localhost) and only work on the address they were added on
+- **Passkey Added Notification** - Users get a notification when a passkey is added to their account
+
+### Fixed
+- **Remember Me** - Ticking "Remember me" did nothing: the token pointed at a session that wasn't saved yet, so saving it failed quietly. It now works for password, 2FA and passkey sign-ins
+
+### Changed
+- New dependency `lbuchs/webauthn`. The updater runs `composer install`; if it can't, run `composer install --no-dev` by hand as the user that owns the files (not root), or later updates can't replace `vendor/`
+- Users with 2FA enabled are still asked for their code when signing in with a password. A passkey sign-in skips it, also under the Forced policy; untick Allow Passkeys to always require the code
+
 ## [1.2.7] - 2026-10-26
 
 ### Fixed

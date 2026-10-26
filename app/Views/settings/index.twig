@@ -745,7 +745,7 @@
     <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden mt-6">
         <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Two-Factor Authentication</h3>
-            <p class="text-sm text-gray-600 dark:text-slate-400 mt-1">Configure 2FA policy and security settings</p>
+            <p class="text-sm text-gray-600 dark:text-slate-400 mt-1">Configure 2FA policy, passkeys and security settings</p>
         </div>
 
         <form method="POST" action="/settings/update-two-factor" class="p-6">
@@ -809,6 +809,20 @@
                         <li>• <strong>Backup Recovery Codes:</strong> 8 single-use codes generated during setup</li>
                         <li>• <strong>Rate Limiting:</strong> Prevents brute force attacks on verification codes</li>
                     </ul>
+                </div>
+
+                <div class="flex items-start pt-2">
+                    <div class="flex items-center h-5">
+                        <input type="checkbox" id="passkeys_enabled" name="passkeys_enabled" value="1"
+                               {{ (twoFactorSettings.passkeys_enabled ?? true) ? 'checked' : '' }}
+                               class="w-4 h-4 text-primary border-gray-300 dark:border-slate-600 rounded focus:ring-primary">
+                    </div>
+                    <div class="ml-3">
+                        <label for="passkeys_enabled" class="text-sm font-medium text-gray-700 dark:text-slate-300">
+                            Allow Passkeys
+                        </label>
+                        <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Users can add passkeys in their profile and sign in with them instead of a password. A passkey sign-in skips the 2FA code, since the device already checks a PIN or biometric. Needs HTTPS.</p>
+                    </div>
                 </div>
             </div>
 

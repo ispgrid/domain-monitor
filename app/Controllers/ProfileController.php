@@ -90,12 +90,17 @@ class ProfileController extends Controller
             'required' => $twoFactorService->isTwoFactorRequired($userId),
         ];
 
+        $passkeyService = new \App\Services\PasskeyService();
+
         $this->view('profile/index', [
             'user' => $user,
             'sessions' => $formattedSessions,
             'avatar' => $avatar,
             'twoFactorStatus' => $twoFactorStatus,
             'twoFactorPolicy' => $twoFactorPolicy,
+            'passkeys' => (new \App\Models\Passkey())->getByUserId($userId),
+            'passkeysEnabled' => $passkeyService->isEnabled(),
+            'passkeyRpId' => $passkeyService->getRpId(),
             'title' => 'My Profile'
         ]);
     }
