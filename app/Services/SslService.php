@@ -295,9 +295,6 @@ class SslService
         }
 
         $details = @openssl_pkey_get_details($publicKey) ?: [];
-        if (PHP_VERSION_ID < 80000) {
-            @openssl_free_key($publicKey);
-        }
 
         return [
             'bits' => isset($details['bits']) ? (int)$details['bits'] : null,

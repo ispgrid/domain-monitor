@@ -4,7 +4,7 @@
 
 > **Fork notice:** this is the [ispgrid](https://github.com/ispgrid) fork of [Hosteroid/domain-monitor](https://github.com/Hosteroid/domain-monitor). See [About This Fork](#-about-this-fork).
 
-[![PHP Version](https://img.shields.io/badge/PHP-8.1%2B-blue.svg)](https://www.php.net/)
+[![PHP Version](https://img.shields.io/badge/PHP-8.2%2B-blue.svg)](https://www.php.net/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -38,7 +38,7 @@ A modern PHP MVC application for monitoring domain expiration dates and sending 
 
 ## 📋 Requirements
 
-- PHP 8.1 or higher
+- PHP 8.2 or higher
 - MySQL 5.7+ or MariaDB 10.3+
 - Composer
 - Apache/Nginx with mod_rewrite enabled

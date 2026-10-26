@@ -24,16 +24,16 @@
         "docs": "https://github.com/ispgrid/domain-monitor#readme"
     },
     "require": {
-        "php": ">=8.1",
+        "php": ">=8.2",
         "ext-json": "*",
         "ext-mbstring": "*",
         "ext-pdo": "*",
-        "vlucas/phpdotenv": "^5.5",
-        "phpmailer/phpmailer": "^6.8",
+        "endroid/qr-code": "^6.0",
         "guzzlehttp/guzzle": "^7.8",
+        "phpmailer/phpmailer": "^6.8",
         "pragmarx/google2fa": "^8.0",
-        "endroid/qr-code": "^4.8",
-        "twig/twig": "^3.0"
+        "twig/twig": "^3.0",
+        "vlucas/phpdotenv": "^5.5"
     },
     "autoload": {
         "psr-4": {
@@ -50,4 +50,3 @@
         "sort-packages": true
     }
 }
-

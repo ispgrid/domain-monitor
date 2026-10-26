@@ -159,7 +159,7 @@ Before submitting:
 1. **Test your changes** thoroughly
    - Test in different environments
    - Test edge cases
-   - Test with different PHP versions (8.1+)
+   - Test with different PHP versions (8.2+)
 
 2. **Check for errors**
    - No PHP warnings or notices

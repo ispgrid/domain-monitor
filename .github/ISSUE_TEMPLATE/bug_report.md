@@ -27,7 +27,7 @@ If applicable, add screenshots to help explain your problem.
 
 ## 🖥️ Environment
 - **OS:** [e.g., Ubuntu 22.04, Windows 11, macOS 13]
-- **PHP Version:** [e.g., 8.1.12]
+- **PHP Version:** [e.g., 8.4.14]
 - **Database:** [e.g., MySQL 8.0, MariaDB 10.6]
 - **Web Server:** [e.g., Apache 2.4, Nginx 1.21]
 - **Browser:** [e.g., Chrome 110, Firefox 109] (if UI issue)

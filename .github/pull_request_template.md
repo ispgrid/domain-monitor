@@ -24,7 +24,7 @@ Related to #
 ## 🧪 Testing
 <!-- Describe the tests you ran and how to reproduce them -->
 
-- [ ] Tested on PHP 8.1
+- [ ] Tested on PHP 8.2+
 - [ ] Tested on PHP 8.2
 - [ ] Tested on PHP 8.3
 - [ ] Tested on PHP 8.4
