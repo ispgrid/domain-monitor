@@ -2,7 +2,7 @@
 
 > A powerful, self-hosted domain expiration monitoring system with multi-channel notifications
 
-> **Fork notice:** this is the [ispgrid](https://github.com/ispgrid) fork of [Hosteroid/domain-monitor](https://github.com/Hosteroid/domain-monitor). See [About This Fork](#-about-this-fork).
+> **Fork notice:** this is the [ispgrid](https://github.com/ispgrid) fork of [Hosteroid/domain-monitor](https://github.com/Hosteroid/domain-monitor). See [About This Fork](#-about-this-fork). Running the original? See [Switching from Hosteroid/domain-monitor](#-switching-from-hosteroiddomain-monitor).
 
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%2B-blue.svg)](https://www.php.net/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -174,6 +174,138 @@ php -S localhost:8000 -t public
 ```
 
 Then visit: `http://localhost:8000`
+
+## 🔁 Switching from Hosteroid/domain-monitor
+
+If you run the original [Hosteroid/domain-monitor](https://github.com/Hosteroid/domain-monitor) (1.1.x), its built-in updater only checks Hosteroid's repository, so **Settings → Updates will never offer this fork's releases**. Switch once by hand with the steps below. After that, updates come from this fork through **Settings → Updates**.
+
+Your database, settings, domains, users, 2FA and uploaded avatars are kept. Only the program files are replaced, then the database is brought up to date.
+
+**Before you start**
+
+- Make sure the site runs **PHP 8.2 or newer** (`php -v`, or your hosting control panel). PHP 8.1 is not supported.
+- Find the folder your site is installed in: the one that contains `.env`, `app` and `public`. The steps call it `domain-monitor` and its parent folder `/var/www` or `C:\laragon\www`; use your own names.
+- Have your admin login ready for the last step.
+
+Then follow the steps for your setup:
+
+- [Linux server (SSH)](#linux-server-ssh)
+- [Windows server](#windows-server)
+- [Shared hosting (cPanel and similar)](#shared-hosting-cpanel-and-similar)
+- [Installed with git clone](#installed-with-git-clone)
+
+### Linux server (SSH)
+
+1. Go to the parent folder and back up the database (database name and user are in `.env`):
+   ```bash
+   cd /var/www
+   mysqldump -u DB_USERNAME -p DB_DATABASE > domain-monitor-backup.sql
+   ```
+2. Rename the old install. It stays as your file backup:
+   ```bash
+   mv domain-monitor domain-monitor-old
+   ```
+3. Download and unpack the latest release:
+   ```bash
+   TAG=$(curl -s https://api.github.com/repos/ispgrid/domain-monitor/releases/latest | grep -m1 '"tag_name"' | cut -d'"' -f4)
+   curl -L -o domain-monitor.zip "https://github.com/ispgrid/domain-monitor/archive/refs/tags/$TAG.zip"
+   unzip -q domain-monitor.zip
+   mv "domain-monitor-${TAG#v}" domain-monitor
+   ```
+4. Copy your settings and uploaded avatars into the new folder:
+   ```bash
+   cp domain-monitor-old/.env domain-monitor-old/.installed domain-monitor/
+   [ -d domain-monitor-old/public/assets/uploads/avatars ] && cp -a domain-monitor-old/public/assets/uploads/avatars domain-monitor/public/assets/uploads/
+   ```
+5. Install the dependencies and give the files the same owner as the old install:
+   ```bash
+   cd domain-monitor
+   composer install --no-dev
+   sudo chown -R --reference=../domain-monitor-old .
+   ```
+6. If you use PHP-FPM, reload it so it drops cached files, e.g. `sudo systemctl reload php8.3-fpm`.
+7. [Finish in the browser](#finish-in-the-browser).
+
+### Windows server
+
+Stop the web server first (Laragon: **Stop All**, XAMPP: stop Apache, IIS: `iisreset /stop`), then open **PowerShell**.
+
+1. Go to the parent folder and back up the database (database name and user are in `.env`; `mysqldump` is in your MySQL `bin` folder):
+   ```powershell
+   cd C:\laragon\www
+   mysqldump -u DB_USERNAME -p DB_DATABASE --result-file=domain-monitor-backup.sql
+   ```
+2. Rename the old install. It stays as your file backup:
+   ```powershell
+   Rename-Item domain-monitor domain-monitor-old
+   ```
+3. Download and unpack the latest release:
+   ```powershell
+   $tag = (Invoke-RestMethod https://api.github.com/repos/ispgrid/domain-monitor/releases/latest).tag_name
+   Invoke-WebRequest "https://github.com/ispgrid/domain-monitor/archive/refs/tags/$tag.zip" -OutFile domain-monitor.zip
+   Expand-Archive domain-monitor.zip -DestinationPath .
+   Rename-Item "domain-monitor-$($tag.TrimStart('v'))" domain-monitor
+   ```
+4. Copy your settings and uploaded avatars into the new folder:
+   ```powershell
+   Copy-Item domain-monitor-old\.env, domain-monitor-old\.installed domain-monitor\
+   if (Test-Path domain-monitor-old\public\assets\uploads\avatars) { Copy-Item domain-monitor-old\public\assets\uploads\avatars domain-monitor\public\assets\uploads\ -Recurse }
+   ```
+5. Install the dependencies:
+   ```powershell
+   cd domain-monitor
+   composer install --no-dev
+   ```
+6. Start the web server again.
+7. [Finish in the browser](#finish-in-the-browser).
+
+### Shared hosting (cPanel and similar)
+
+These steps use cPanel names. Plesk and DirectAdmin have the same tools (database export, File Manager, PHP version) under similar names.
+
+1. **Back up the database:** open **phpMyAdmin**, select your Domain Monitor database, click **Export**, then **Go**, and keep the downloaded `.sql` file.
+2. **Check PHP:** in **Select PHP Version** or **MultiPHP Manager**, make sure the site uses PHP 8.2 or newer.
+3. **Show hidden files:** open **File Manager**, click **Settings** (top right), tick **Show Hidden Files (dotfiles)** and save. You need this to see `.env` and `.installed`.
+4. **Rename the old install:** right-click your `domain-monitor` folder, choose **Rename** and call it `domain-monitor-old`. It stays as your file backup. The site is offline until the last step.
+5. **Upload the new release:** on your computer, download **Source code (zip)** from the [latest release](https://github.com/ispgrid/domain-monitor/releases/latest). In File Manager, open the folder that contained `domain-monitor`, click **Upload** and upload the zip. Right-click the zip, choose **Extract**, then rename the extracted folder (for example `domain-monitor-1.2.2`) to `domain-monitor`.
+6. **Copy your settings and avatars:** in `domain-monitor-old`, select `.env` and `.installed`, click **Copy** and enter the path of the new `domain-monitor` folder. If `domain-monitor-old/public/assets/uploads/avatars` exists, copy that folder to `domain-monitor/public/assets/uploads/`.
+7. **Install the dependencies**, in one of these ways:
+   - **With Terminal or SSH** (cPanel: **Advanced → Terminal**):
+     ```bash
+     cd ~/domain-monitor
+     composer install --no-dev
+     ```
+     Use the path of your folder. If Composer complains about the PHP version, the terminal uses a different PHP than your site; ask your host for the right PHP binary.
+   - **Without Terminal:** on your computer, unpack the same zip and, in that folder, run the commands below. Replace `8.2` with your host's PHP version, so the dependencies work on the host even if your computer has a newer PHP.
+     ```bash
+     composer config platform.php 8.2
+     composer install --no-dev
+     ```
+     Zip the `vendor` folder, upload the zip into `domain-monitor` on the host and **Extract** it there.
+8. [Finish in the browser](#finish-in-the-browser).
+
+### Installed with git clone
+
+If your install is a `git clone` with no local changes, point it at this fork and pull:
+
+```bash
+cd domain-monitor
+git remote set-url origin https://github.com/ispgrid/domain-monitor.git
+git pull --ff-only origin main
+composer update --no-dev
+```
+
+Use `composer update`, not `composer install`: the old `composer.lock` is kept outside git and still lists the 1.1.x dependency versions. If `git pull` refuses because of local changes, use the steps for your platform above instead. Then [finish in the browser](#finish-in-the-browser).
+
+### Finish in the browser
+
+1. Log in to your site as an admin.
+2. Open `https://your-site/install/update` and click **Run Update Now**. It runs every database migration between your old version and the new one.
+3. Check your domains, then go to **Settings → Updates** and click **Check for Updates**. It should show the latest release from this fork.
+
+Cron jobs keep working because the folder path has not changed. When everything works, delete `domain-monitor-old` and the downloaded zip. Keep the database backup for a while.
+
+If something goes wrong, delete the new `domain-monitor` folder, rename `domain-monitor-old` back to `domain-monitor` and restore the database backup.
 
 ## 🔧 Configuration
 
@@ -539,7 +671,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🍴 About This Fork
 
-This is an actively maintained fork of [Hosteroid/domain-monitor](https://github.com/Hosteroid/domain-monitor), maintained by [ispgrid](https://github.com/ispgrid). Please report issues with this fork here rather than to the original project.
+This is an actively maintained fork of [Hosteroid/domain-monitor](https://github.com/Hosteroid/domain-monitor), maintained by [ispgrid](https://github.com/ispgrid). Please report issues with this fork here rather than to the original project. To move an existing Hosteroid install to this fork, see [Switching from Hosteroid/domain-monitor](#-switching-from-hosteroiddomain-monitor).
 
 ## 🙏 Acknowledgments
 
