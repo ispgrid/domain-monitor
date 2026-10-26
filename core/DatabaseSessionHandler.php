@@ -15,7 +15,11 @@ class DatabaseSessionHandler implements SessionHandlerInterface
 {
     private PDO $db;
     private int $lifetime;
-    
+
+    // Session id and payload as read at the start of this request (payload null = no row existed)
+    private ?string $readId = null;
+    private ?string $readPayload = null;
+
     public function __construct(int $lifetime = 1440)
     {
         $this->db = Database::getConnection();
@@ -49,13 +53,16 @@ class DatabaseSessionHandler implements SessionHandlerInterface
             );
             $stmt->execute([$id, time() - ($this->lifetime * 60)]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            
+
+            $this->readId = $id;
+            $this->readPayload = $result ? $result['payload'] : null;
+
             if ($result) {
                 // Update last activity
                 $this->updateActivity($id);
                 return $result['payload'];
             }
-            
+
             return '';
         } catch (\Exception $e) {
             error_log("Session read failed: " . $e->getMessage());
@@ -69,6 +76,22 @@ class DatabaseSessionHandler implements SessionHandlerInterface
     public function write(string $id, string $data): bool
     {
         try {
+            // Sessions are not locked, so a long request (TLD import batch, refresh) would otherwise
+            // write back the copy it read at the start and undo changes other requests made meanwhile
+            if ($id === $this->readId && $this->readPayload !== null) {
+                // Unchanged in this request: nothing to save (read() already updated last activity)
+                if ($data === $this->readPayload) {
+                    return true;
+                }
+
+                // Deleted while this request ran (logout, remote termination): don't bring it back
+                $stmt = $this->db->prepare("SELECT 1 FROM sessions WHERE id = ?");
+                $stmt->execute([$id]);
+                if (!$stmt->fetchColumn()) {
+                    return true;
+                }
+            }
+
             // Extract user_id from session data
             $sessionData = $this->unserializeSession($data);
             $userId = $sessionData['user_id'] ?? null;

@@ -77,12 +77,24 @@ class DnsService
         DNS_CNAME => 'CNAME',
         DNS_SOA   => 'SOA',
         DNS_SRV   => 'SRV',
-        DNS_CAA   => 'CAA',
+        // CAA is added in rootRecordTypes(): DNS_CAA is not defined on Windows builds of PHP
     ];
 
     public function __construct()
     {
         $this->logger = new Logger('dns');
+    }
+
+    /**
+     * Record types queried on the root domain, plus CAA where PHP supports it
+     */
+    private function rootRecordTypes(): array
+    {
+        $types = self::ROOT_RECORD_TYPES;
+        if (defined('DNS_CAA')) {
+            $types[\DNS_CAA] = 'CAA';
+        }
+        return $types;
     }
 
     // ========================================================================
@@ -380,7 +392,7 @@ class DnsService
         ];
         $seen = [];
 
-        foreach (self::ROOT_RECORD_TYPES as $dnsConst => $typeName) {
+        foreach ($this->rootRecordTypes() as $dnsConst => $typeName) {
             $this->queryAndCollect($domain, $dnsConst, $typeName, $domain, $records, $seen);
         }
 

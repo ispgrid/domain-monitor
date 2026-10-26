@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-10-26
+
+### Fixed
+- **Session Race** - A long request (TLD import batch, domain refresh) no longer writes back the session it read at the start, which could bring back an already shown message or undo a logout made meanwhile
+- **DNS Refresh on Windows** - Refreshing a domain no longer fails with `Undefined constant DNS_CAA` on Windows, where PHP has no CAA lookups (CAA records are skipped there)
+- **Updater Integrity Check** - The updater reads the commit SHA from the release archive's comment, so releases tagged with annotated tags no longer fail the check
+
 ## [1.2.1] - 2026-10-26
 
 ### Added

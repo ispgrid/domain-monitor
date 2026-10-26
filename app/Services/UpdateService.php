@@ -28,6 +28,9 @@ class UpdateService
     private Client $httpClient;
     private string $rootPath;
 
+    // Full commit SHA GitHub stores as the zipball's archive comment (null if missing)
+    private ?string $archiveCommitSha = null;
+
     public function __construct()
     {
         $this->settingModel = new Setting();
@@ -575,6 +578,9 @@ class UpdateService
             throw new \RuntimeException("Failed to open zip archive (error code: $openResult)");
         }
 
+        $comment = trim((string)$zip->getArchiveComment());
+        $this->archiveCommitSha = preg_match('/^[a-f0-9]{40}$/i', $comment) ? $comment : null;
+
         $zip->extractTo($stagingDir);
         $zip->close();
 
@@ -660,7 +666,11 @@ class UpdateService
             return;
         }
 
-        $actualShort = $this->getShortShaFromFolderName($stagingDir);
+        // Prefer the commit SHA from the archive comment: for annotated tags the folder name
+        // carries the tag object SHA instead of the commit SHA
+        $actualShort = $this->archiveCommitSha !== null
+            ? substr($this->archiveCommitSha, 0, 7)
+            : $this->getShortShaFromFolderName($stagingDir);
         if ($actualShort === null) {
             throw new \RuntimeException(
                 'Integrity check failed: could not read commit SHA from archive folder name. ' .

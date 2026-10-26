@@ -426,7 +426,7 @@ INSERT INTO settings (setting_key, setting_value, `type`, `description`) VALUES
 ('app_name', 'Domain Monitor', 'string', 'Application name'),
 ('app_url', 'http://localhost:8000', 'string', 'Application URL'),
 ('app_timezone', 'UTC', 'string', 'Application timezone'),
-('app_version', '1.2.1', 'string', 'Application version number'),
+('app_version', '1.2.2', 'string', 'Application version number'),
 
 -- Email settings
 ('mail_host', 'smtp.mailtrap.io', 'string', 'SMTP server host'),
