@@ -61,3 +61,25 @@ yarn.lock
 dist/
 build/
 .agent
+
+# Local tooling
+.agents/
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+GEMINI.md
+.gemini/
+.codex/
+.cursor/
+.cursorrules
+.windsurf/
+.windsurfrules
+.clinerules
+.roo/
+.kiro/
+.junie/
+.continue/
+.aider*
+.gstack/
+.github/copilot-instructions.md
