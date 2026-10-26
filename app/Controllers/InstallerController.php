@@ -63,6 +63,7 @@ class InstallerController extends Controller
             '030_update_app_version_v1.2.0.sql',
             '031_update_app_version_v1.2.1.sql',
             '032_update_app_version_v1.2.2.sql',
+            '033_update_app_version_v1.2.3.sql',
         ];
 
         try {
@@ -212,6 +213,7 @@ class InstallerController extends Controller
                     '030_update_app_version_v1.2.0.sql',
                     '031_update_app_version_v1.2.1.sql',
                     '032_update_app_version_v1.2.2.sql',
+                    '033_update_app_version_v1.2.3.sql',
                 ];
             }
 
@@ -444,6 +446,7 @@ class InstallerController extends Controller
                     '030_update_app_version_v1.2.0.sql',
                     '031_update_app_version_v1.2.1.sql',
                     '032_update_app_version_v1.2.2.sql',
+                    '033_update_app_version_v1.2.3.sql',
                 ];
 
                 $stmt = $pdo->prepare("INSERT INTO migrations (migration) VALUES (?) ON DUPLICATE KEY UPDATE migration=migration");
@@ -682,7 +685,9 @@ class InstallerController extends Controller
                     
                     // Fallback: detect "to" version from which migrations were run
                     if ($toVersion === $fromVersion) {
-                        if (in_array('032_update_app_version_v1.2.2.sql', $executed)) {
+                        if (in_array('033_update_app_version_v1.2.3.sql', $executed)) {
+                            $toVersion = '1.2.3';
+                        } elseif (in_array('032_update_app_version_v1.2.2.sql', $executed)) {
                             $toVersion = '1.2.2';
                         } elseif (in_array('031_update_app_version_v1.2.1.sql', $executed)) {
                             $toVersion = '1.2.1';

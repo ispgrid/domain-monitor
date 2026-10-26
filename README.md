@@ -210,9 +210,9 @@ Most installs were made with `git clone`. If yours was, and you haven't changed 
    git rev-parse --short HEAD
    git remote set-url origin https://github.com/ispgrid/domain-monitor.git
    git pull --ff-only origin main
-   composer update --no-dev
+   composer install --no-dev
    ```
-   Note the commit printed by `git rev-parse`; you need it to undo the switch. Use `composer update`, not `composer install`: the old `composer.lock` is kept outside git and still lists the 1.1.x dependency versions.
+   Note the commit printed by `git rev-parse`; you need it to undo the switch. The pull replaces your local `composer.lock` with the one from this fork.
 3. [Finish in the browser](#finish-in-the-browser).
 
 If `git pull` refuses because of local changes, use the steps for your platform below instead.
@@ -299,9 +299,8 @@ These steps use cPanel names. Plesk and DirectAdmin have the same tools (databas
      composer install --no-dev
      ```
      Use the path of your folder. If Composer complains about the PHP version, the terminal uses a different PHP than your site; ask your host for the right PHP binary.
-   - **Without Terminal:** on your computer, unpack the same zip and, in that folder, run the commands below. Replace `8.2` with your host's PHP version, so the dependencies work on the host even if your computer has a newer PHP.
+   - **Without Terminal:** on your computer, unpack the same zip and, in that folder, run the command below. The dependencies are locked to versions that work on PHP 8.2 and newer, so they run on the host even if your computer has a newer PHP.
      ```bash
-     composer config platform.php 8.2
      composer install --no-dev
      ```
      Zip the `vendor` folder, upload the zip into `domain-monitor` on the host and **Extract** it there.

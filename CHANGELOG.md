@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-10-26
+
+### Changed
+- **Locked Dependencies** - `composer.lock` is now part of the repository and every release, so `composer install` gets the tested versions, and `git pull` installs and the updater no longer fail with a stale lock file when a release changes dependencies
+- **PHP 8.2 Dependency Target** - Composer picks versions that run on PHP 8.2, so a `vendor` folder built on a newer PHP also works on an 8.2 host (`endroid/qr-code` is now 6.0.x)
+
 ## [1.2.2] - 2026-10-26
 
 ### Fixed
