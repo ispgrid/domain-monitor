@@ -994,21 +994,23 @@ class UpdateService
         // Try mysqldump first (fastest, most reliable)
         if ($this->canRunShellCommands()) {
             $mysqldumpPath = $this->findBinary('mysqldump');
-            if ($mysqldumpPath) {
+            $optionsFile = $mysqldumpPath ? $this->writeMysqlOptionsFile($backupDir) : null;
+            if ($optionsFile) {
+                // --result-file keeps mysqldump's messages (e.g. warnings) out of the dump
                 $cmd = sprintf(
-                    '%s --host=%s --port=%s --user=%s --password=%s --single-transaction --routines --triggers --add-drop-table %s > %s 2>&1',
+                    '%s --defaults-extra-file=%s --single-transaction --routines --triggers --add-drop-table --result-file=%s %s 2>&1',
                     escapeshellarg($mysqldumpPath),
-                    escapeshellarg($host),
-                    escapeshellarg($port),
-                    escapeshellarg($username),
-                    escapeshellarg($password),
-                    escapeshellarg($database),
-                    escapeshellarg($sqlFile)
+                    escapeshellarg($optionsFile),
+                    escapeshellarg($sqlFile),
+                    escapeshellarg($database)
                 );
+                $output = [];
                 exec($cmd, $output, $exitCode);
+                @unlink($optionsFile);
                 if ($exitCode === 0 && file_exists($sqlFile) && filesize($sqlFile) > 0) {
                     return ['success' => true, 'path' => $sqlFile, 'method' => 'mysqldump', 'reason' => ''];
                 }
+                $this->logger->warning('mysqldump failed, using PDO dump', ['output' => implode("\n", $output)]);
                 // mysqldump failed, clean up and fall through to PDO
                 if (file_exists($sqlFile)) {
                     @unlink($sqlFile);
@@ -1085,38 +1087,49 @@ class UpdateService
             return false;
         }
 
-        // Try mysql CLI first
-        if ($this->canRunShellCommands()) {
-            $mysqlPath = $this->findBinary('mysql');
-            if ($mysqlPath) {
-                $host = $_ENV['DB_HOST'] ?? 'localhost';
-                $port = $_ENV['DB_PORT'] ?? '3306';
-                $database = $_ENV['DB_DATABASE'] ?? '';
-                $username = $_ENV['DB_USERNAME'] ?? '';
-                $password = $_ENV['DB_PASSWORD'] ?? '';
+        // Backups made before 1.2.6 start with mysqldump's password warning, which is not SQL
+        $cleanFile = $this->withoutDumpWarnings($sqlFile);
 
-                $cmd = sprintf(
-                    '%s --host=%s --port=%s --user=%s --password=%s %s < %s 2>&1',
-                    escapeshellarg($mysqlPath),
-                    escapeshellarg($host),
-                    escapeshellarg($port),
-                    escapeshellarg($username),
-                    escapeshellarg($password),
-                    escapeshellarg($database),
-                    escapeshellarg($sqlFile)
-                );
-                exec($cmd, $output, $exitCode);
-                if ($exitCode === 0) {
-                    $this->logger->info('Database restored via mysql CLI', ['path' => $sqlFile]);
-                    return true;
+        try {
+            // Try mysql CLI first
+            if ($this->canRunShellCommands()) {
+                $mysqlPath = $this->findBinary('mysql');
+                $optionsFile = $mysqlPath ? $this->writeMysqlOptionsFile(dirname($sqlFile)) : null;
+                if ($optionsFile) {
+                    $cmd = sprintf(
+                        '%s --defaults-extra-file=%s %s < %s 2>&1',
+                        escapeshellarg($mysqlPath),
+                        escapeshellarg($optionsFile),
+                        escapeshellarg($_ENV['DB_DATABASE'] ?? ''),
+                        escapeshellarg($cleanFile)
+                    );
+                    $output = [];
+                    exec($cmd, $output, $exitCode);
+                    @unlink($optionsFile);
+                    if ($exitCode === 0) {
+                        $this->logger->info('Database restored via mysql CLI', ['path' => $sqlFile]);
+                        return true;
+                    }
+                    $this->logger->warning('Database restore via mysql CLI failed, trying PDO', ['output' => implode("\n", $output)]);
                 }
             }
-        }
 
-        // Fallback: execute SQL via PDO (statement by statement)
+            return $this->restoreDatabaseWithPdo($cleanFile, $sqlFile);
+        } finally {
+            if ($cleanFile !== $sqlFile) {
+                @unlink($cleanFile);
+            }
+        }
+    }
+
+    /**
+     * Execute a .sql backup statement by statement via PDO (fallback when the mysql CLI is unavailable)
+     */
+    private function restoreDatabaseWithPdo(string $file, string $originalPath): bool
+    {
         try {
             $pdo = \Core\Database::getConnection();
-            $sql = file_get_contents($sqlFile);
+            $sql = file_get_contents($file);
             if (empty($sql)) {
                 return false;
             }
@@ -1125,18 +1138,79 @@ class UpdateService
             // Split on semicolons followed by newline (to avoid breaking on values containing semicolons)
             $statements = preg_split('/;\s*\n/', $sql);
             foreach ($statements as $stmt) {
-                $stmt = trim($stmt);
-                if (empty($stmt) || strpos($stmt, '--') === 0) continue;
+                // Drop comment lines only: in mysqldump output they come right before the DROP TABLE
+                $stmt = trim(preg_replace('/^--(\s.*)?$/m', '', $stmt));
+                if ($stmt === '') continue;
                 $pdo->exec($stmt);
             }
             $pdo->exec("SET FOREIGN_KEY_CHECKS=1");
 
-            $this->logger->info('Database restored via PDO', ['path' => $sqlFile]);
+            $this->logger->info('Database restored via PDO', ['path' => $originalPath]);
             return true;
         } catch (\Exception $e) {
             $this->logger->error('Database restore via PDO failed', ['error' => $e->getMessage()]);
             return false;
         }
+    }
+
+    /**
+     * Write DB credentials to a temporary MySQL option file (readable by owner only) for
+     * mysqldump/mysql, so the password is not on the command line. Caller deletes it.
+     */
+    private function writeMysqlOptionsFile(string $dir): ?string
+    {
+        $quote = static fn(string $v): string => '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $v) . '"';
+        $content = "[client]\n"
+            . 'host=' . $quote($_ENV['DB_HOST'] ?? 'localhost') . "\n"
+            . 'port=' . (int)($_ENV['DB_PORT'] ?? 3306) . "\n"
+            . 'user=' . $quote($_ENV['DB_USERNAME'] ?? '') . "\n"
+            . 'password=' . $quote($_ENV['DB_PASSWORD'] ?? '') . "\n";
+
+        $file = rtrim($dir, '/\\') . '/.mysql-' . bin2hex(random_bytes(8)) . '.cnf';
+        if (@file_put_contents($file, $content, LOCK_EX) === false) {
+            $this->logger->warning('Could not write MySQL option file', ['dir' => $dir]);
+            return null;
+        }
+        @chmod($file, 0600);
+
+        return $file;
+    }
+
+    /**
+     * Return a copy of the dump without leading "mysqldump: ..." lines, or the file itself if it has none.
+     * Backups made before 1.2.6 captured mysqldump's warnings in the file.
+     */
+    private function withoutDumpWarnings(string $sqlFile): string
+    {
+        $in = @fopen($sqlFile, 'rb');
+        if (!$in) {
+            return $sqlFile;
+        }
+
+        $skipped = 0;
+        while (($line = fgets($in)) !== false && strpos($line, 'mysqldump: ') === 0) {
+            $skipped++;
+        }
+        if ($skipped === 0) {
+            fclose($in);
+            return $sqlFile;
+        }
+
+        $cleanFile = $sqlFile . '.restore';
+        $out = @fopen($cleanFile, 'wb');
+        if (!$out) {
+            fclose($in);
+            return $sqlFile;
+        }
+        if ($line !== false) {
+            fwrite($out, $line);
+        }
+        stream_copy_to_stream($in, $out);
+        fclose($in);
+        fclose($out);
+        $this->logger->info('Skipped mysqldump messages at the start of the backup', ['lines' => $skipped]);
+
+        return $cleanFile;
     }
 
     /**

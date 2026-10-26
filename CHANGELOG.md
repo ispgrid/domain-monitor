@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.6] - 2026-10-26
+
+### Fixed
+- **Rollback Database Restore** - Rolling back restored the files but never the database, so the old version still showed the new version number and schema. Database backups started with mysqldump's "Using a password on the command line" warning, which is not SQL. Backups no longer contain it, and rollback skips it in backups made by earlier versions
+- **PDO Database Restore** - Restoring a mysqldump backup without shell access skipped every `DROP TABLE` (they follow a comment block) and failed
+- **Database Password on the Command Line** - mysqldump and mysql get the database login from a temporary file readable only by the owner instead of the command line, so it no longer shows in the server's process list
+- **Rollback Message** - When the database cannot be restored, rollback shows a warning that only the files were restored, instead of a success message
+
 ## [1.2.5] - 2026-10-26
 
 ### Fixed

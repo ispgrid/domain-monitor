@@ -177,13 +177,16 @@ class UpdateController extends Controller
         $result = $this->updateService->rollback();
 
         if ($result['success']) {
-            $msg = 'Rollback completed successfully. Files have been restored to the previous version.';
-            if (isset($result['db_restored'])) {
-                $msg .= $result['db_restored']
-                    ? ' Database has also been restored from the backup.'
-                    : ' Database could not be restored automatically. You can import the SQL backup manually from the backups/ directory.';
+            if (isset($result['db_restored']) && !$result['db_restored']) {
+                // Files are old but the database is not: the shown version and schema are still the new ones
+                $_SESSION['warning'] = 'Files have been restored to the previous version, but the database could not be restored automatically (see logs/updater_*.log). Import the matching db_backup_*.sql from the backups/ directory manually.';
+            } else {
+                $msg = 'Rollback completed successfully. Files have been restored to the previous version.';
+                if (isset($result['db_restored'])) {
+                    $msg .= ' Database has also been restored from the backup.';
+                }
+                $_SESSION['success'] = $msg;
             }
-            $_SESSION['success'] = $msg;
         } else {
             $_SESSION['error'] = $result['error'] ?? 'Rollback failed';
         }
