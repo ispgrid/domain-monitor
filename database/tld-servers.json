@@ -1,0 +1,7 @@
+{
+    "_about": "RDAP/WHOIS servers for TLDs that IANA does not list. Used only when the TLD Registry has no server for the TLD. Each entry needs \"rdap\" (list of https URLs) and/or \"whois\" (hostname), plus a \"source\" link. Check with: php scripts/check-tld-servers.php. See CONTRIBUTING.md.",
+    "iq": {
+        "rdap": ["https://whois.reg.iq/rdap/"],
+        "source": "https://whois.reg.iq"
+    }
+}

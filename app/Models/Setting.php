@@ -77,6 +77,16 @@ class Setting extends Model
     }
 
     /**
+     * Get SSL alert days as array, largest first (the largest marks a certificate as expiring)
+     */
+    public function getSslNotificationDays(): array
+    {
+        $days = array_filter(array_map('intval', explode(',', (string)$this->getValue('ssl_notification_days', '30'))), fn($d) => $d > 0);
+        rsort($days, SORT_NUMERIC);
+        return $days ? array_values(array_unique($days)) : [30];
+    }
+
+    /**
      * Get check interval hours
      */
     public function getCheckIntervalHours(): int
@@ -122,7 +132,7 @@ class Setting extends Model
      */
     public function getAppVersion(): string
     {
-        return $this->getValue('app_version', '1.2.3');
+        return $this->getValue('app_version', '1.2.4');
     }
 
     /**
@@ -316,7 +326,7 @@ class Setting extends Model
      */
     public function updateNotificationStatusTriggers(array $triggers): bool
     {
-        $validTriggers = ['available', 'registered', 'expired', 'redemption_period', 'pending_delete'];
+        $validTriggers = ['available', 'registered', 'renewed', 'expired', 'redemption_period', 'pending_delete'];
         $triggers = array_intersect($triggers, $validTriggers);
         $value = implode(',', $triggers);
         return $this->setValue('notification_status_triggers', $value);

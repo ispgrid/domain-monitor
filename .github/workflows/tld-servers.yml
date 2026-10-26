@@ -1,0 +1,25 @@
+name: TLD server list
+
+on:
+  pull_request:
+    paths:
+      - database/tld-servers.json
+      - app/Services/BundledTldServers.php
+      - scripts/check-tld-servers.php
+  push:
+    branches: [main]
+    paths:
+      - database/tld-servers.json
+      - app/Services/BundledTldServers.php
+      - scripts/check-tld-servers.php
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check database/tld-servers.json
+        run: php scripts/check-tld-servers.php

@@ -20,6 +20,12 @@ class TldRegistryService
     private const IANA_TLD_BASE_URL = 'https://www.iana.org/domains/root/db/';
     private const IANA_TLD_LIST_URL = 'https://data.iana.org/TLD/tlds-alpha-by-domain.txt';
     private const IANA_RDAP_DOMAIN_URL = 'https://rdap.iana.org/domain/';
+    // Whole TLD registry in one file (WHOIS servers are no longer in IANA's RDAP answers)
+    private const IANA_TLD_JSON_URL = 'https://data.iana.org/TLD/v1/tlds.json';
+    private const IANA_TLD_JSON_CACHE = __DIR__ . '/../../cache/iana_tlds.json';
+    private const IANA_TLD_JSON_TTL = 21600; // 6 hours; IANA regenerates the file daily
+
+    private ?array $ianaTldData = null;
 
     public function __construct()
     {
@@ -357,19 +363,12 @@ class TldRegistryService
     private function getTldsNeedingWhoisData(int $limit = 100, int $startFromId = 0): array
     {
         // Process ALL TLDs systematically (A to Z, or ID 1 to last ID)
-        // This ensures we get complete data for every TLD, even if some don't have WHOIS/RDAP data
-        $sql = "SELECT * FROM tld_registry 
-                WHERE is_active = 1 
+        // This ensures we get complete data for every TLD, even if some don't have WHOIS/RDAP data.
+        // Strictly by ID: batches resume from the highest ID done, so any other order skips TLDs
+        $sql = "SELECT * FROM tld_registry
+                WHERE is_active = 1
                 AND id > " . intval($startFromId) . "
-                ORDER BY 
-                    CASE 
-                        WHEN (whois_server IS NULL OR whois_server = '') AND (registry_url IS NULL OR registry_url = '') THEN 0
-                        WHEN whois_server IS NULL OR whois_server = '' THEN 1
-                        WHEN registry_url IS NULL OR registry_url = '' THEN 2
-                        WHEN registration_date IS NULL OR record_last_updated IS NULL THEN 3
-                        ELSE 4
-                    END,
-                    id ASC
+                ORDER BY id ASC
                 LIMIT " . intval($limit);
         
         // Use the model's database connection through a public method
@@ -1440,22 +1439,22 @@ class TldRegistryService
                 }
             }
 
-            // Step 2: If WHOIS server is missing, try HTML fallback
+            // Step 2: If WHOIS server is missing, use IANA's TLD registry file (TLD page as last resort)
             if (!isset($result['whois_server']) || empty($result['whois_server'])) {
-                $htmlData = $this->fetchWhoisDataFromHtml($tld);
-                if ($htmlData) {
-                    // Merge HTML data, prioritizing RDAP data but filling gaps with HTML data
-                    if (isset($htmlData['whois_server']) && !empty($htmlData['whois_server'])) {
-                        $result['whois_server'] = $htmlData['whois_server'];
+                $ianaData = $this->fetchIanaTldData($tld);
+                if ($ianaData) {
+                    // Merge IANA data, prioritizing RDAP data but filling gaps
+                    if (isset($ianaData['whois_server']) && !empty($ianaData['whois_server'])) {
+                        $result['whois_server'] = $ianaData['whois_server'];
                     }
-                    if (!isset($result['registry_url']) && isset($htmlData['registry_url'])) {
-                        $result['registry_url'] = $htmlData['registry_url'];
+                    if (!isset($result['registry_url']) && isset($ianaData['registry_url'])) {
+                        $result['registry_url'] = $ianaData['registry_url'];
                     }
-                    if (!isset($result['registration_date']) && isset($htmlData['registration_date'])) {
-                        $result['registration_date'] = $htmlData['registration_date'];
+                    if (!isset($result['registration_date']) && isset($ianaData['registration_date'])) {
+                        $result['registration_date'] = $ianaData['registration_date'];
                     }
-                    if (!isset($result['record_last_updated']) && isset($htmlData['record_last_updated'])) {
-                        $result['record_last_updated'] = $htmlData['record_last_updated'];
+                    if (!isset($result['record_last_updated']) && isset($ianaData['record_last_updated'])) {
+                        $result['record_last_updated'] = $ianaData['record_last_updated'];
                     }
                 }
             }
@@ -1469,6 +1468,90 @@ class TldRegistryService
         }
 
         return null;
+    }
+
+    /**
+     * WHOIS server, registry URL and dates for a TLD from IANA's TLD registry file.
+     * Falls back to the TLD's IANA page only when the file can't be loaded or lacks the TLD.
+     */
+    public function fetchIanaTldData(string $tld): ?array
+    {
+        $name = strtolower(ltrim($tld, '.'));
+        $data = $this->getIanaTldData();
+
+        if (!isset($data[$name])) {
+            return $this->fetchWhoisDataFromHtml($tld);
+        }
+
+        $entry = $data[$name];
+        $result = [];
+        if (!empty($entry['whois'])) {
+            $result['whois_server'] = $entry['whois'];
+        }
+        if (!empty($entry['url'])) {
+            $result['registry_url'] = $entry['url'];
+        }
+        if (!empty($entry['updated'])) {
+            $result['record_last_updated'] = $this->normalizeDate($entry['updated']);
+        }
+        if (!empty($entry['delegated'])) {
+            $result['registration_date'] = $this->normalizeDate($entry['delegated']);
+        }
+
+        return !empty($result) ? $result : null;
+    }
+
+    /**
+     * Load IANA's TLD registry file as [tld => [whois, url, updated, delegated]].
+     * Downloaded once and cached in cache/ so import batches don't fetch it again.
+     */
+    private function getIanaTldData(): array
+    {
+        if ($this->ianaTldData !== null) {
+            return $this->ianaTldData;
+        }
+
+        $cacheFile = self::IANA_TLD_JSON_CACHE;
+        $cached = is_file($cacheFile) ? json_decode((string) @file_get_contents($cacheFile), true) : null;
+        if (is_array($cached) && !empty($cached) && filemtime($cacheFile) > time() - self::IANA_TLD_JSON_TTL) {
+            return $this->ianaTldData = $cached;
+        }
+
+        try {
+            $response = $this->getJsonClient()->get(self::IANA_TLD_JSON_URL, ['timeout' => 60]);
+            $json = $response->getStatusCode() === 200 ? json_decode((string) $response->getBody(), true) : null;
+
+            if (!is_array($json['domains'] ?? null) || count($json['domains']) < 100) {
+                throw new \RuntimeException('Unexpected response (HTTP ' . $response->getStatusCode() . ')');
+            }
+
+            $map = [];
+            foreach ($json['domains'] as $domain) {
+                if (empty($domain['name'])) {
+                    continue;
+                }
+                $map[strtolower($domain['name'])] = [
+                    'whois'     => $domain['whois_server'] ?? null,
+                    'url'       => $domain['registration_url'] ?? null,
+                    'updated'   => $domain['last_updated'] ?? null,
+                    'delegated' => $domain['events']['delegation'] ?? null,
+                ];
+            }
+
+            if (!is_dir(dirname($cacheFile))) {
+                @mkdir(dirname($cacheFile), 0755, true);
+            }
+            @file_put_contents($cacheFile, json_encode($map), LOCK_EX);
+
+            $this->logger->info('Loaded IANA TLD registry file', ['tlds' => count($map)]);
+            return $this->ianaTldData = $map;
+        } catch (\Exception $e) {
+            // An expired copy is still better than one page request per TLD
+            $this->logger->warning('Could not load IANA TLD registry file: ' . $e->getMessage(), [
+                'using_expired_cache' => is_array($cached) && !empty($cached),
+            ]);
+            return $this->ianaTldData = (is_array($cached) ? $cached : []);
+        }
     }
 
     /**
@@ -1530,6 +1613,12 @@ class TldRegistryService
      */
     private function extractWhoisServer(string $html): ?string
     {
+        // Current IANA layout: label and value in sibling divs, "-" when there is none
+        $value = $this->extractIanaField($html, 'WHOIS Server');
+        if ($value !== null) {
+            return $value === '-' ? null : $value;
+        }
+
         // Look for WHOIS Server pattern with HTML tags
         if (preg_match('/<b>WHOIS Server:<\/b>\s*([^\s<]+)/i', $html, $matches)) {
             return trim($matches[1]);
@@ -1548,7 +1637,12 @@ class TldRegistryService
      */
     private function extractLastUpdated(string $html): ?string
     {
-        // Look for "Record last updated" pattern
+        $value = $this->extractIanaField($html, 'Last Updated');
+        if ($value !== null && preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return $value . ' 00:00:00';
+        }
+
+        // Look for "Record last updated" pattern (old IANA layout)
         if (preg_match('/Record last updated\s+(\d{4}-\d{2}-\d{2})/i', $html, $matches)) {
             return $matches[1] . ' 00:00:00';
         }
@@ -1560,6 +1654,12 @@ class TldRegistryService
      */
     private function extractRegistryUrl(string $html): ?string
     {
+        // Current IANA layout calls it "Website"
+        $value = $this->extractIanaField($html, 'Website', true);
+        if ($value !== null) {
+            return $value === '-' ? null : $value;
+        }
+
         // Look for "URL for registration services" pattern with <a> tag
         if (preg_match('/<b>URL for registration services:<\/b>\s*<a[^>]*href="([^"]+)"[^>]*>/i', $html, $matches)) {
             return trim($matches[1]);
@@ -1583,11 +1683,30 @@ class TldRegistryService
      */
     private function extractRegistrationDate(string $html): ?string
     {
-        // Look for "Registration date" pattern
+        // Only shown on the old IANA layout
         if (preg_match('/Registration date\s+(\d{4}-\d{2}-\d{2})/i', $html, $matches)) {
             return $matches[1];
         }
         return null;
+    }
+
+    /**
+     * Read a field from the current IANA TLD page layout:
+     * <div class="... muted ...">Label</div><div class="col...">value</div>
+     */
+    private function extractIanaField(string $html, string $label, bool $preferHref = false): ?string
+    {
+        $pattern = '/<div class="[^"]*\bmuted\b[^"]*">\s*' . preg_quote($label, '/') . '\s*<\/div>\s*<div class="col[^"]*">(.*?)<\/div>/is';
+        if (!preg_match($pattern, $html, $matches)) {
+            return null;
+        }
+
+        if ($preferHref && preg_match('/<a[^>]*href="([^"]+)"/i', $matches[1], $link)) {
+            return trim(html_entity_decode($link[1]));
+        }
+
+        $value = trim(html_entity_decode(strip_tags($matches[1])));
+        return $value !== '' ? $value : null;
     }
 
     /**

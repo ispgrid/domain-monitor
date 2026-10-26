@@ -21,6 +21,51 @@ class SslCertificate extends Model
     }
 
     /**
+     * Certificates of active, SSL-monitored domains: problems first, then soonest expiry.
+     * Returns the top rows plus counts for the dashboard widget.
+     *
+     * @return array{certificates: array, total: int, expiring: int, issues: int}
+     */
+    public function getDashboardSummary(int $limit = 5, ?int $userId = null): array
+    {
+        $where = "d.is_active = 1 AND d.ssl_monitoring_enabled = 1";
+        $params = [];
+
+        if ($userId) {
+            $where .= " AND d.user_id = ?";
+            $params[] = $userId;
+        }
+
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*) AS total,
+                    COALESCE(SUM(sc.status = 'expiring'), 0) AS expiring,
+                    COALESCE(SUM(sc.status IN ('expired', 'invalid')), 0) AS issues
+             FROM ssl_certificates sc
+             JOIN domains d ON d.id = sc.domain_id
+             WHERE {$where}"
+        );
+        $stmt->execute($params);
+        $counts = $stmt->fetch();
+
+        $stmt = $this->db->prepare(
+            "SELECT sc.id, sc.domain_id, sc.hostname, sc.port, sc.status, sc.valid_to, sc.issuer_name, d.domain_name
+             FROM ssl_certificates sc
+             JOIN domains d ON d.id = sc.domain_id
+             WHERE {$where}
+             ORDER BY sc.status IN ('expired', 'invalid') DESC, sc.valid_to IS NULL, sc.valid_to ASC
+             LIMIT " . max(1, $limit)
+        );
+        $stmt->execute($params);
+
+        return [
+            'certificates' => $stmt->fetchAll(),
+            'total' => (int)$counts['total'],
+            'expiring' => (int)$counts['expiring'],
+            'issues' => (int)$counts['issues'],
+        ];
+    }
+
+    /**
      * Count monitored SSL certificates for a domain.
      */
     public function countByDomain(int $domainId): int

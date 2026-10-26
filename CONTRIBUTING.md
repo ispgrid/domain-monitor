@@ -10,6 +10,7 @@ Thank you for your interest in contributing to Domain Monitor! This document pro
 - 🔧 **Submit code** - Fix bugs or implement features
 - 🎨 **Enhance UI/UX** - Improve the user experience
 - 🌍 **Add translations** - Make the project accessible to more users
+- 🌐 **Add TLD servers** - List RDAP/WHOIS servers for TLDs that IANA does not cover ([how](#-adding-tld-servers))
 
 ## 🐛 Reporting Bugs
 
@@ -232,6 +233,28 @@ git commit -m "update"
    - Address review comments
    - Make requested changes
    - Keep the conversation productive
+
+## 🌐 Adding TLD Servers
+
+Domain Monitor gets RDAP and WHOIS servers from IANA. Some registries are not listed there (for example `.iq`), so lookups for their domains fail or come back without an expiry date. `database/tld-servers.json` fills those gaps. You can add a TLD without writing PHP.
+
+```json
+"iq": {
+    "rdap": ["https://whois.reg.iq/rdap/"],
+    "source": "https://whois.reg.iq"
+}
+```
+
+- The key is the TLD in lowercase without the leading dot, e.g. `iq` or `com.iq`.
+- `rdap`: list of `https://` RDAP base URLs. `whois`: a WHOIS hostname, without scheme or port. Give one or both.
+- `source`: a link where reviewers can check the server, such as the registry's own page.
+- Only add TLDs that IANA has no server for. The app uses an entry only when the TLD Registry has no server for that TLD, and a server an admin sets in the TLD Registry always wins.
+
+Before opening a pull request:
+
+1. Run `php scripts/check-tld-servers.php`. It lists every error and must print `No errors`. The same check runs on pull requests.
+2. Add a domain under that TLD in your install and check that it shows an expiry date.
+3. In the pull request, name the domain you tested.
 
 ## 📝 Documentation
 

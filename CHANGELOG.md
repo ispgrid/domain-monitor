@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.4] - 2026-10-26
+
+### Added
+- **SSL Alert Days** - SSL certificate alerts have their own days in Settings → Monitoring, separate from domain expiry. A certificate counts as expiring at the largest number and gets a reminder on each other day, so Let's Encrypt users can set `14,7,3,1` and only hear about failed renewals. Default `30` keeps the old behaviour ([Hosteroid#72](https://github.com/Hosteroid/domain-monitor/issues/72))
+- **SSL Dashboard Widget** - The dashboard lists the monitored certificates that fail or expire first, with counts of expiring and failing ones ([Hosteroid#77](https://github.com/Hosteroid/domain-monitor/issues/77))
+- **Domain Renewed Notification** - New "Renewed" trigger sends an alert when a domain's expiration date moves later. Off by default, turn it on in Settings → Monitoring ([Hosteroid#74](https://github.com/Hosteroid/domain-monitor/issues/74))
+- **Billing Preview Toggle** - The Billing tab and Financial Summary card only show sample data, so they are now hidden by default. Turn them on in Settings → Application ([Hosteroid#69](https://github.com/Hosteroid/domain-monitor/issues/69))
+- **Bundled TLD Servers** - `database/tld-servers.json` holds RDAP/WHOIS servers for TLDs IANA does not list, starting with `.iq`. Anyone can add one with a pull request; the file is checked by `php scripts/check-tld-servers.php`, on GitHub for each change and in the admin TLD Registry
+- **Monitoring Options on Add Domain** - Active, DNS and SSL monitoring can be set when adding a domain
+
+### Changed
+- **Dependencies** - Guzzle 8, PHPMailer 7, google2fa 9 and symfony/var-dumper 7.4 (dev)
+
+### Fixed
+- **TLD Import WHOIS Servers** - IANA no longer returns WHOIS servers over RDAP and redesigned its TLD pages, so imports stored none. WHOIS servers now come from IANA's `tlds.json` registry file, and the TLD page parser reads the new layout
+- **TLD Import Skipping TLDs** - Import batches resumed from the wrong place and skipped most TLDs
+- **Wildcard DNS** - Hosts removed from a zone with a wildcard record no longer stay listed because the wildcard still answers for them ([Hosteroid#76](https://github.com/Hosteroid/domain-monitor/issues/76))
+- **Imported SOA** - An SOA record imported from a zone file is replaced by the live one instead of being reported as removed on every check ([Hosteroid#97](https://github.com/Hosteroid/domain-monitor/issues/97))
+- **Webhook Errors** - A webhook answering with an HTTP error no longer crashes the notification
+- **.pro Lookups** - Removed an old hard-coded `.pro` WHOIS server that no longer answers
+- **Updater** - The commit SHA is saved before Composer runs, so a later dependency change cannot break the update screen
+
 ## [1.2.3] - 2026-10-26
 
 ### Changed

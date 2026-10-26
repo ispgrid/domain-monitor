@@ -29,9 +29,9 @@
         "ext-mbstring": "*",
         "ext-pdo": "*",
         "endroid/qr-code": "^6.0",
-        "guzzlehttp/guzzle": "^7.8",
-        "phpmailer/phpmailer": "^6.8",
-        "pragmarx/google2fa": "^8.0",
+        "guzzlehttp/guzzle": "^8.3",
+        "phpmailer/phpmailer": "^7.1",
+        "pragmarx/google2fa": "^9.1",
         "twig/twig": "^3.0",
         "vlucas/phpdotenv": "^5.5"
     },
@@ -42,7 +42,7 @@
         }
     },
     "require-dev": {
-        "symfony/var-dumper": "^6.3"
+        "symfony/var-dumper": "^7.4"
     },
     "config": {
         "optimize-autoloader": true,

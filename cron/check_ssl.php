@@ -6,8 +6,9 @@
  *
  * Checks tracked SSL endpoints for active domains with SSL monitoring enabled.
  * If no root endpoint is tracked yet, the root domain falls back to port 443.
- * Sends notifications when an SSL state changes or when the first monitored
- * baseline already has an issue.
+ * Sends notifications when an SSL state changes, when the first monitored
+ * baseline already has an issue, and when an expiring certificate reaches one
+ * of the SSL alert days set in Settings.
  *
  * Usage: php cron/check_ssl.php
  * Recommended schedule: run at minute 0 every 12 hours.
@@ -45,7 +46,8 @@ $groupModel = new NotificationGroup();
 $logModel = new NotificationLog();
 $settingModel = new Setting();
 $userModel = new User();
-$sslService = new SslService();
+$sslNotificationDays = $settingModel->getSslNotificationDays();
+$sslService = new SslService($sslNotificationDays[0]);
 $notificationService = new NotificationService();
 $logger = new Logger('ssl-cron');
 
@@ -61,6 +63,7 @@ $cron = new CronHelper($logFile);
 $startTime = microtime(true);
 
 logMessage("=== Starting SSL check cron job ===");
+logMessage("SSL alert days: " . implode(', ', $sslNotificationDays));
 
 // Only check domains that are registered and in use (active or expiring_soon).
 // Skip available, expired, error, redemption_period, pending_delete — they typically have no DNS/SSL.
@@ -90,6 +93,7 @@ $stats = [
     'in_app_notifications' => 0,
     'errors' => 0,
     'status_changes' => 0,
+    'reminders' => 0,
 ];
 
 $isolationMode = $settingModel->getValue('user_isolation_mode', 'shared');
@@ -142,6 +146,7 @@ foreach ($domains as $domain) {
 
             $existing = $sslModel->findByDomainAndHost($domain['id'], $hostname, $port);
             $previousStatus = $existing['status'] ?? null;
+            $previousDays = isset($existing['days_remaining']) ? (int)$existing['days_remaining'] : null;
 
             $snapshot = $sslService->fetchCertificateSnapshot($hostname, $port);
             $sslModel->saveSnapshot($domain['id'], $hostname, $snapshot, $port);
@@ -157,18 +162,30 @@ foreach ($domains as $domain) {
             $statusChanged = $previousStatus !== null && $previousStatus !== $status;
             $firstIssueBaseline = $previousStatus === null && $isIssue;
 
+            // Still expiring, and an alert day was passed since the last check
+            $daysLeft = $snapshot['days_remaining'] ?? null;
+            $reminderDue = !$statusChanged && $status === 'expiring' && $previousStatus === 'expiring'
+                && $previousDays !== null && $daysLeft !== null
+                && !empty(array_filter($sslNotificationDays, fn($d) => $previousDays > $d && $daysLeft <= $d));
+
             logMessage(
                 "  {$endpointLabel}: {$status}" .
                 ($snapshot['valid_to'] ? " (valid_to: {$snapshot['valid_to']})" : '') .
                 ($snapshot['last_error'] ? " (error: {$snapshot['last_error']})" : '')
             );
 
-            if (!$statusChanged && !$firstIssueBaseline) {
+            if (!$statusChanged && !$firstIssueBaseline && !$reminderDue) {
                 continue;
             }
 
-            $domainStatusChanges++;
-            $stats['status_changes']++;
+            if ($reminderDue) {
+                logMessage("  -> SSL alert day reached ({$daysLeft} days left)");
+                $stats['reminders']++;
+                $previousStatus = null;
+            } else {
+                $domainStatusChanges++;
+                $stats['status_changes']++;
+            }
 
             sendExternalSslNotifications(
                 $domain,
@@ -187,6 +204,7 @@ foreach ($domains as $domain) {
                 $endpointLabel,
                 $status,
                 $previousStatus,
+                $daysLeft,
                 $isolationMode,
                 $userModel,
                 $groupModel,
@@ -229,6 +247,7 @@ logMessage("Domains skipped:        {$stats['skipped_by_status']} (non-checkable
 logMessage("Endpoints skipped:      {$stats['skipped_unresolved']} (hostname does not resolve)");
 logMessage("Endpoints checked:      {$stats['checked_hosts']}");
 logMessage("Status changes:         {$stats['status_changes']}");
+logMessage("Expiry reminders:       {$stats['reminders']}");
 logMessage("Issue endpoints:        {$stats['issues_detected']}");
 logMessage("External notifications: {$stats['notifications_sent']}");
 logMessage("In-app notifications:   {$stats['in_app_notifications']}");
@@ -297,6 +316,7 @@ function sendInAppSslNotifications(
     string $hostname,
     string $status,
     ?string $previousStatus,
+    ?int $daysLeft,
     string $isolationMode,
     User $userModel,
     NotificationGroup $groupModel,
@@ -336,7 +356,8 @@ function sendInAppSslNotifications(
                 $hostname,
                 $domain['id'],
                 $status,
-                $previousStatus
+                $previousStatus,
+                $daysLeft
             );
             $notifiedCount++;
         } catch (\Exception $e) {

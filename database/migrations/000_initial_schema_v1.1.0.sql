@@ -426,7 +426,7 @@ INSERT INTO settings (setting_key, setting_value, `type`, `description`) VALUES
 ('app_name', 'Domain Monitor', 'string', 'Application name'),
 ('app_url', 'http://localhost:8000', 'string', 'Application URL'),
 ('app_timezone', 'UTC', 'string', 'Application timezone'),
-('app_version', '1.2.3', 'string', 'Application version number'),
+('app_version', '1.2.4', 'string', 'Application version number'),
 
 -- Email settings
 ('mail_host', 'smtp.mailtrap.io', 'string', 'SMTP server host'),
@@ -470,6 +470,8 @@ INSERT INTO settings (setting_key, setting_value, `type`, `description`) VALUES
 
 -- SSL monitoring settings
 ('ssl_check_interval_hours', '12', 'string', 'SSL certificate check interval in hours'),
+('ssl_notification_days', '30', 'string', 'Days before SSL certificate expiry to send alerts'),
+('show_billing_tab', '0', 'boolean', 'Show the Billing preview on the domain page'),
 ('last_ssl_check_run', NULL, 'datetime', 'Last time SSL cron job ran'),
 
 -- Update system settings

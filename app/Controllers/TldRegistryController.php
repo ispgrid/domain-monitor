@@ -7,6 +7,7 @@ use Core\Auth;
 use App\Models\TldRegistry;
 use App\Models\TldImportLog;
 use App\Services\TldRegistryService;
+use App\Services\WhoisService;
 use App\Services\Logger;
 
 class TldRegistryController extends Controller
@@ -38,9 +39,11 @@ class TldRegistryController extends Controller
 
         $result = $this->tldModel->getPaginated($page, $perPage, $search, $sort, $order, $status, $dataType);
         $tldStats = $this->tldModel->getStatistics();
+        $bundledServers = WhoisService::bundledServers();
 
         $this->view('tld-registry/index', [
-            'tlds' => $result['tlds'],
+            'tlds' => array_map(fn($tld) => $tld + ['bundled' => $bundledServers->get($tld['tld'])], $result['tlds']),
+            'bundledErrors' => $bundledServers->errors(),
             'pagination' => $result['pagination'],
             'tldStats' => $tldStats,
             'filters' => [
@@ -69,7 +72,7 @@ class TldRegistryController extends Controller
         }
 
         $this->view('tld-registry/view', [
-            'tld' => $tld,
+            'tld' => $tld + ['bundled' => WhoisService::bundledServers()->get($tld['tld'])],
             'title' => 'TLD: ' . $tld['tld']
         ]);
     }
@@ -544,32 +547,15 @@ class TldRegistryController extends Controller
         }
 
         try {
-            // Remove dot from TLD for URL
-            $tldForUrl = ltrim($tld['tld'], '.');
-            $url = "https://www.iana.org/domains/root/db/{$tldForUrl}.html";
+            // IANA's TLD registry file, or the TLD's IANA page if the file is unavailable
+            $ianaData = $this->tldService->fetchIanaTldData($tld['tld']);
 
-            $client = new \GuzzleHttp\Client();
-            $response = $client->get($url);
-            $html = $response->getBody()->getContents();
-
-            // Extract data from HTML
-            $whoisServer = $this->extractWhoisServer($html);
-            $lastUpdated = $this->extractLastUpdated($html);
-            $registryUrl = $this->extractRegistryUrl($html);
-            $registrationDate = $this->extractRegistrationDate($html);
-
-            $updateData = [
-                'updated_at' => date('Y-m-d H:i:s')
-            ];
-
-            if ($whoisServer) $updateData['whois_server'] = $whoisServer;
-            if ($lastUpdated) $updateData['record_last_updated'] = $lastUpdated;
-            if ($registryUrl) $updateData['registry_url'] = $registryUrl;
-            if ($registrationDate) $updateData['registration_date'] = $registrationDate;
-
-            $this->tldModel->update($id, $updateData);
-            
-            $_SESSION['success'] = "TLD {$tld['tld']} data refreshed successfully";
+            if (empty($ianaData)) {
+                $_SESSION['error'] = "No IANA data found for TLD {$tld['tld']}";
+            } else {
+                $this->tldModel->update($id, $ianaData + ['updated_at' => date('Y-m-d H:i:s')]);
+                $_SESSION['success'] = "TLD {$tld['tld']} data refreshed successfully";
+            }
             
         } catch (\Exception $e) {
             $_SESSION['error'] = 'Failed to refresh TLD data: ' . $e->getMessage();
@@ -991,50 +977,6 @@ class TldRegistryController extends Controller
         }
 
         $this->redirect('/tld-registry');
-    }
-
-    /**
-     * Extract WHOIS server from HTML
-     */
-    private function extractWhoisServer(string $html): ?string
-    {
-        if (preg_match('/WHOIS Server:\s*([^\s<]+)/i', $html, $matches)) {
-            return trim($matches[1]);
-        }
-        return null;
-    }
-
-    /**
-     * Extract last updated date from HTML
-     */
-    private function extractLastUpdated(string $html): ?string
-    {
-        if (preg_match('/Record last updated\s+(\d{4}-\d{2}-\d{2})/i', $html, $matches)) {
-            return $matches[1] . ' 00:00:00';
-        }
-        return null;
-    }
-
-    /**
-     * Extract registry URL from HTML
-     */
-    private function extractRegistryUrl(string $html): ?string
-    {
-        if (preg_match('/URL for registration services:\s*([^\s<]+)/i', $html, $matches)) {
-            return trim($matches[1]);
-        }
-        return null;
-    }
-
-    /**
-     * Extract registration date from HTML
-     */
-    private function extractRegistrationDate(string $html): ?string
-    {
-        if (preg_match('/Registration date\s+(\d{4}-\d{2}-\d{2})/i', $html, $matches)) {
-            return $matches[1];
-        }
-        return null;
     }
 
     /**

@@ -112,14 +112,19 @@ class DnsService
 
         [$records, $seen] = $this->queryRootDomain($domain);
 
+        // A wildcard answers for every name, so hosts removed from the zone would keep resolving.
+        // Known hosts that answer exactly like the wildcard are left out
+        $wildcard = $this->probeWildcard($domain);
+
         // Query known subdomain hosts directly (no existence probe needed)
+        $dropped = 0;
         foreach ($existingHosts as $sub) {
-            $fqdn = "{$sub}.{$domain}";
-            $this->queryAndCollect($fqdn, DNS_A, 'A', $domain, $records, $seen);
-            $this->queryAndCollect($fqdn, DNS_AAAA, 'AAAA', $domain, $records, $seen);
-            $this->queryAndCollect($fqdn, DNS_CNAME, 'CNAME', $domain, $records, $seen);
-            $this->queryAndCollect($fqdn, DNS_MX, 'MX', $domain, $records, $seen);
-            $this->queryAndCollect($fqdn, DNS_TXT, 'TXT', $domain, $records, $seen);
+            if (!$this->collectHost("{$sub}.{$domain}", $domain, $records, $seen, $wildcard)) {
+                $dropped++;
+            }
+        }
+        if ($dropped > 0) {
+            $this->logger->info("Known hosts answered only by the wildcard, left out", ['domain' => $domain, 'hosts' => $dropped]);
         }
 
         foreach (self::SPECIAL_TXT_SUBDOMAINS as $sub) {
@@ -205,11 +210,12 @@ class DnsService
         $candidates = array_unique(array_merge($candidates, $targetSubs));
 
         // Wildcard detection: probe a random nonsense subdomain
-        $wildcardDetected = false;
-        $probeHost = '_dm-wc-' . bin2hex(random_bytes(4)) . '.' . $domain;
         $log("Wildcard detection: probing random subdomain...");
-        if ($this->subdomainExists($probeHost)) {
-            $wildcardDetected = true;
+        $wildcard = $this->probeWildcard($domain);
+        // Resolver check as before too: some resolvers answer for names that do not exist
+        $wildcardDetected = $wildcard !== null
+            || $this->subdomainExists('_dm-wc-' . bin2hex(random_bytes(4)) . '.' . $domain);
+        if ($wildcardDetected) {
             $this->logger->info("Wildcard DNS detected, skipping brute force", ['domain' => $domain]);
             $log("⚠ Wildcard DNS detected — brute force skipped, using only crt.sh/known hosts");
             // Only use crt.sh/extra candidates + DB hosts (real subdomains), not wordlist
@@ -239,13 +245,14 @@ class DnsService
         if (!empty($discovered)) {
             $log("Querying " . count($discovered) . " discovered subdomain(s)...");
         }
+        $wildcardOnly = 0;
         foreach ($discovered as $sub) {
-            $fqdn = "{$sub}.{$domain}";
-            $this->queryAndCollect($fqdn, DNS_A, 'A', $domain, $records, $seen);
-            $this->queryAndCollect($fqdn, DNS_AAAA, 'AAAA', $domain, $records, $seen);
-            $this->queryAndCollect($fqdn, DNS_CNAME, 'CNAME', $domain, $records, $seen);
-            $this->queryAndCollect($fqdn, DNS_MX, 'MX', $domain, $records, $seen);
-            $this->queryAndCollect($fqdn, DNS_TXT, 'TXT', $domain, $records, $seen);
+            if (!$this->collectHost("{$sub}.{$domain}", $domain, $records, $seen, $wildcard)) {
+                $wildcardOnly++;
+            }
+        }
+        if ($wildcardOnly > 0) {
+            $log("{$wildcardOnly} host(s) answered only by the wildcard, left out");
         }
 
         $log("Querying special TXT subdomains...");
@@ -333,6 +340,92 @@ class DnsService
         }
         $seen[$dedupKey] = true;
         $records[$type][] = $parsed;
+    }
+
+    /**
+     * Query the record types used for subdomains and return the answers, without merging them.
+     */
+    private function queryHost(string $fqdn, string $domain): array
+    {
+        $hostRecords = [];
+        $hostSeen = [];
+        $this->queryAndCollect($fqdn, DNS_A, 'A', $domain, $hostRecords, $hostSeen);
+        $this->queryAndCollect($fqdn, DNS_AAAA, 'AAAA', $domain, $hostRecords, $hostSeen);
+        $this->queryAndCollect($fqdn, DNS_CNAME, 'CNAME', $domain, $hostRecords, $hostSeen);
+        $this->queryAndCollect($fqdn, DNS_MX, 'MX', $domain, $hostRecords, $hostSeen);
+        $this->queryAndCollect($fqdn, DNS_TXT, 'TXT', $domain, $hostRecords, $hostSeen);
+        return $hostRecords;
+    }
+
+    /**
+     * Query a subdomain and merge its records. Returns false, without merging, when every
+     * answer is the wildcard's: the host is not in the zone any more and only the wildcard answers.
+     */
+    private function collectHost(string $fqdn, string $domain, array &$records, array &$seen, ?string $wildcard = null): bool
+    {
+        $hostRecords = $this->queryHost($fqdn, $domain);
+
+        // A "*" host (from a zone import) is the wildcard itself, never dropped
+        $label = substr($fqdn, 0, -strlen($domain) - 1);
+        if ($wildcard !== null && !str_contains($label, '*') && !empty($hostRecords)
+            && $this->answerSignature($hostRecords, $label, $domain) === $wildcard) {
+            return false;
+        }
+
+        foreach ($hostRecords as $type => $list) {
+            foreach ($list as $parsed) {
+                $this->addIfNew($type, $parsed, $records, $seen);
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Ask for random labels to see whether the zone has a wildcard, and return its answer
+     * signature to compare known hosts with. Some providers answer differently per name;
+     * when the random labels disagree there is nothing reliable to compare, so null.
+     */
+    private function probeWildcard(string $domain): ?string
+    {
+        $signature = null;
+        for ($i = 0; $i < 3; $i++) {
+            $label = '_dm-wc-' . bin2hex(random_bytes(4));
+            $probe = $this->answerSignature($this->queryHost("{$label}.{$domain}", $domain), $label, $domain);
+            if ($probe === '' || ($signature !== null && $probe !== $signature)) {
+                return null;
+            }
+            $signature = $probe;
+        }
+        return $signature;
+    }
+
+    /**
+     * Host-independent fingerprint of the answers for one name. A CNAME decides everything
+     * else at that name, so when there is one only the CNAME is compared. The name itself
+     * inside a value (some zones answer MX with the queried name) is replaced too.
+     */
+    private function answerSignature(array $hostRecords, string $label, string $domain): string
+    {
+        $self = strtolower("{$label}.{$domain}");
+        $parts = [];
+        $cnames = [];
+        foreach ($hostRecords as $type => $list) {
+            foreach ($list as $parsed) {
+                if (strcasecmp($parsed['host'], $label) !== 0) {
+                    continue;
+                }
+                $value = str_replace($self, '{self}', strtolower(rtrim($parsed['value'], '.')));
+                $part = $type . ':' . $value . ':' . ($parsed['priority'] ?? '');
+                $parts[] = $part;
+                if ($type === 'CNAME') {
+                    $cnames[] = $part;
+                }
+            }
+        }
+
+        $parts = array_values(array_unique(!empty($cnames) ? $cnames : $parts));
+        sort($parts);
+        return implode('|', $parts);
     }
 
     /**
@@ -676,8 +769,9 @@ class DnsService
                     break;
                 case 'SOA':
                     if (count($rdata) >= 7) {
+                        // Value is the primary NS, as in parseRecord(), so a live lookup matches the imported row
                         $parsed = [
-                            'host' => $host, 'value' => implode(' ', $rdata), 'ttl' => $ttl,
+                            'host' => $host, 'value' => rtrim($rdata[0], '.'), 'ttl' => $ttl,
                             'is_cloudflare' => false,
                             'raw' => ['host' => ($host === '@' ? $domain : "{$host}.{$domain}"), 'type' => 'SOA', 'mname' => rtrim($rdata[0], '.'), 'rname' => rtrim($rdata[1], '.'), 'serial' => (int)$rdata[2], 'refresh' => (int)$rdata[3], 'retry' => (int)$rdata[4], 'expire' => (int)$rdata[5], 'minimum-ttl' => (int)$rdata[6], 'ttl' => $ttl],
                         ];

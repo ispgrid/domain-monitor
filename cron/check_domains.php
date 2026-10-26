@@ -90,7 +90,8 @@ $stats = [
     'notification_groups_used' => [],
     'domains_notified' => [],
     'status_changes' => 0,
-    'status_notifications_sent' => 0
+    'status_notifications_sent' => 0,
+    'renewals' => 0
 ];
 
 // Get notification status triggers from settings
@@ -330,6 +331,11 @@ foreach ($domains as $domain) {
                     }
                 }
             }
+        }
+
+        // Renewal: expiration date moved later (skipped when a status alert already went out)
+        if (!$statusNotificationType) {
+            notifyIfRenewed($domain, $expirationDate);
         }
 
         // ============================================================
@@ -638,6 +644,8 @@ if (!empty($retryQueue)) {
                     
                     $stats['checked']++;
                     $stats['updated']++;
+
+                    notifyIfRenewed($domain, $expirationDate);
                     
                     // Check notifications for successfully retried domains
                     $daysLeft = $whoisService->daysUntilExpiration($whoisData['expiration_date']);
@@ -799,6 +807,7 @@ logMessage("Domains checked: {$stats['checked']}");
 logMessage("Domains updated: {$stats['updated']}");
 logMessage("Status changes detected: {$stats['status_changes']}");
 logMessage("Status notifications sent: {$stats['status_notifications_sent']}");
+logMessage("Renewals detected: {$stats['renewals']}");
 logMessage("External notifications sent: {$stats['notifications_sent']}");
 logMessage("In-app notifications created: {$stats['in_app_notifications_created']}");
 logMessage("Domains with notifications: {$stats['domains_with_notifications']}");
@@ -882,4 +891,75 @@ try {
 logMessage("==========================\n");
 
 exit(0);
+
+/**
+ * Send "domain renewed" alerts (external and in-app) when the expiration date moved later
+ */
+function notifyIfRenewed(array $domain, ?string $newExpiration): void
+{
+    global $statusTriggers, $domainModel, $channelModel, $logModel, $groupModel, $userModel, $settingModel, $notificationService, $stats;
+
+    $oldExpiration = $domain['expiration_date'] ?? null;
+    if (!in_array('renewed', $statusTriggers) || empty($oldExpiration) || empty($newExpiration)) {
+        return;
+    }
+
+    // At least a day later, so a registry changing only the time does not count
+    if (strtotime($newExpiration) - strtotime($oldExpiration) < 86400) {
+        return;
+    }
+
+    $domainName = $domain['domain_name'];
+    logMessage("  🔄 Renewed: expiration $oldExpiration → $newExpiration");
+    $stats['renewals']++;
+
+    $domainData = $domainModel->find($domain['id']);
+
+    if (!empty($domain['notification_group_id'])) {
+        $channels = $channelModel->getActiveByGroupId($domain['notification_group_id']);
+
+        foreach ($channels ? $notificationService->sendDomainRenewedAlert($domainData, $channels, $oldExpiration) : [] as $result) {
+            $success = $result['success'];
+            logMessage($success ? "    ✓ Sent to {$result['channel']}" : "    ✗ Failed to send to {$result['channel']}");
+            if ($success) {
+                $stats['status_notifications_sent']++;
+                $stats['notifications_sent']++;
+            }
+
+            $logModel->log(
+                $domain['id'],
+                'domain_renewed',
+                $result['channel'],
+                "Domain $domainName renewed until $newExpiration",
+                $success,
+                $success ? null : "Failed to send notification"
+            );
+        }
+    }
+
+    $usersToNotify = [];
+    if ($settingModel->getValue('user_isolation_mode', 'shared') === 'isolated') {
+        $userId = $domainData['user_id'] ?? null;
+        if (!$userId && !empty($domain['notification_group_id'])) {
+            $group = $groupModel->find($domain['notification_group_id']);
+            $userId = $group['user_id'] ?? null;
+        }
+        if ($userId) {
+            $usersToNotify[] = $userId;
+        }
+    } else {
+        foreach ($userModel->where('is_active', 1) as $user) {
+            $usersToNotify[] = $user['id'];
+        }
+    }
+
+    foreach ($usersToNotify as $userId) {
+        try {
+            $notificationService->notifyDomainRenewed($userId, $domainName, $domain['id'], $newExpiration);
+            $stats['in_app_notifications_created']++;
+        } catch (Exception $e) {
+            logMessage("  ⚠ Failed to create renewal notification for user $userId: " . $e->getMessage());
+        }
+    }
+}
 

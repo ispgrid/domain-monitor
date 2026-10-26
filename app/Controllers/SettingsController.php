@@ -228,6 +228,20 @@ class SettingsController extends Controller
                 return;
             }
 
+            // SSL alert days (separate from domain expiry days)
+            $sslDays = array_filter(array_map('trim', explode(',', $_POST['ssl_notification_days'] ?? '30')), function($day) {
+                return ctype_digit($day) && (int)$day > 0 && (int)$day <= 365;
+            });
+
+            if (empty($sslDays)) {
+                $_SESSION['error'] = 'Invalid SSL alert days. Use comma-separated numbers from 1 to 365 (e.g., 14,7,3,1)';
+                $this->redirect('/settings#monitoring');
+                return;
+            }
+
+            $sslDays = array_unique(array_map('intval', $sslDays));
+            rsort($sslDays, SORT_NUMERIC);
+
             // Update status notification triggers
             $statusTriggers = $_POST['notification_status_triggers'] ?? [];
             if (!is_array($statusTriggers)) {
@@ -237,6 +251,7 @@ class SettingsController extends Controller
             // Save settings
             $this->settingModel->setValue('notification_days_before', $notificationDays);
             $this->settingModel->setValue('check_interval_hours', $checkInterval);
+            $this->settingModel->setValue('ssl_notification_days', implode(',', $sslDays));
             $this->settingModel->updateNotificationStatusTriggers($statusTriggers);
 
             $_SESSION['success'] = 'Settings updated successfully';
@@ -343,6 +358,7 @@ class SettingsController extends Controller
                 $viewTemplate = 'detailed';
             }
             $this->settingModel->setValue('domain_view_template', $viewTemplate);
+            $this->settingModel->setValue('show_billing_tab', isset($_POST['show_billing_tab']) ? '1' : '0');
             
             $_SESSION['success'] = 'Application settings updated successfully';
             $this->redirect('/settings#app');

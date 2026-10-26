@@ -234,7 +234,11 @@ class UpdateService
             $filesUpdated = $this->applyFiles($stagingDir);
             $result['files_updated'] = $filesUpdated;
 
-            // Step 7: Run composer install if dependencies changed (skip if exec disabled, e.g. cPanel)
+            // Step 7: Update commit SHA tracking. Done before composer install: once vendor is
+            // replaced, classes loaded earlier in this request no longer match the files on disk
+            $this->updateCommitSha();
+
+            // Step 8: Run composer install if dependencies changed (skip if exec disabled, e.g. cPanel)
             $result['composer_manual_required'] = false;
             if ($composerChanged) {
                 if (!$this->canRunShellCommands()) {
@@ -247,9 +251,6 @@ class UpdateService
                     $this->logger->info('Composer manual action required. If dependencies changed, run: composer install --no-dev (e.g. via SSH or cPanel Terminal).');
                 }
             }
-
-            // Step 8: Update commit SHA tracking
-            $this->updateCommitSha();
 
             // Step 9: Clean up
             $this->cleanup($archivePath, $stagingDir);

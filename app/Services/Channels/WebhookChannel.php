@@ -67,9 +67,10 @@ class WebhookChannel implements NotificationChannelInterface
                 'payload_preview' => $this->getPayloadPreview($payload)
             ];
             
-            // Include response body if available (e.g., 4xx/5xx errors)
-            if ($e->hasResponse()) {
-                $response = $e->getResponse();
+            // Include response body if available (e.g., 4xx/5xx errors).
+            // Guzzle 8 only has getResponse() on ResponseException; Guzzle 7 has it on every RequestException
+            $response = method_exists($e, 'getResponse') ? $e->getResponse() : null;
+            if ($response) {
                 $errorDetails['status'] = $response->getStatusCode();
                 $errorDetails['response_body'] = $this->truncate((string) $response->getBody(), 1000);
             }

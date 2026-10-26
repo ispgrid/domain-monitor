@@ -16,6 +16,8 @@ class WhoisService
     
     // Track last error type for rate limit detection
     private static ?string $lastErrorType = null;
+
+    private static ?BundledTldServers $bundledServers = null;
     
     /**
      * Clear TLD cache (useful for testing or forcing fresh lookups)
@@ -79,6 +81,8 @@ class WhoisService
             } else {
                 $servers = $this->discoverTldServers($tld);
             }
+
+            $servers = $this->fillFromBundledServers($servers, array_filter([$doubleTld, $tld]));
 
             $rdapUrl = $servers['rdap_url'];
             $whoisServer = $servers['whois_server'];
@@ -251,6 +255,43 @@ class WhoisService
     }
 
     /**
+     * Fill a missing RDAP or WHOIS server from database/tld-servers.json (most specific TLD first).
+     * Servers from the TLD registry or IANA are never replaced.
+     */
+    private function fillFromBundledServers(array $servers, array $tlds): array
+    {
+        foreach ($tlds as $tld) {
+            $bundled = self::bundledServers()->get($tld);
+            if (!$bundled) {
+                continue;
+            }
+            if (!$servers['rdap_url'] && $bundled['rdap']) {
+                $servers['rdap_url'] = $bundled['rdap'][0];
+            }
+            if (!$servers['whois_server'] && $bundled['whois']) {
+                $servers['whois_server'] = $bundled['whois'];
+            }
+        }
+        return $servers;
+    }
+
+    /**
+     * Bundled TLD server list, loaded once per process. Errors in the file are logged and the bad entries skipped.
+     */
+    public static function bundledServers(): BundledTldServers
+    {
+        if (self::$bundledServers === null) {
+            self::$bundledServers = new BundledTldServers();
+            if (self::$bundledServers->errors()) {
+                (new Logger('whois'))->warning('Errors in database/tld-servers.json, affected entries are skipped', [
+                    'errors' => self::$bundledServers->errors(),
+                ]);
+            }
+        }
+        return self::$bundledServers;
+    }
+
+    /**
      * Discover RDAP and WHOIS servers for a TLD using TLD registry data
      * Returns array with 'rdap_url' and 'whois_server' keys
      */
@@ -318,11 +359,6 @@ class WhoisService
                 if (preg_match('/^whois:\s+(.+)$/i', $line, $matches)) {
                     $result['whois_server'] = trim($matches[1]);
                 }
-            }
-            
-            // Special handling for .pro TLD - it doesn't have a WHOIS server in IANA
-            if ($tld === 'pro' && !$result['whois_server']) {
-                $result['whois_server'] = 'whois.afilias.net';
             }
 
             // Try to get RDAP URL from IANA's RDAP bootstrap service

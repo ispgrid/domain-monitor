@@ -82,6 +82,25 @@
 </div>
 {% endif %}
 
+{% if bundledErrors is not empty and session.role is defined and session.role == 'admin' %}
+<div class="mb-4 bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/30 rounded-lg p-4">
+    <div class="flex items-start">
+        <i class="fas fa-exclamation-triangle text-yellow-600 mr-2 mt-0.5"></i>
+        <div class="text-sm text-yellow-800 dark:text-yellow-400">
+            <p class="font-medium">The bundled server list <code>database/tld-servers.json</code> has errors. The affected entries are not used.</p>
+            <ul class="mt-1 list-disc list-inside text-xs">
+                {% for error in bundledErrors|slice(0, 10) %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+            {% if bundledErrors|length > 10 %}
+            <p class="mt-1 text-xs">+{{ bundledErrors|length - 10 }} more. Run <code>php scripts/check-tld-servers.php</code> for the full list.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {# Statistics Cards #}
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
     {# Total TLDs Card #}
@@ -315,6 +334,9 @@
                                     {% else %}
                                     <span class="text-sm text-gray-400 dark:text-slate-500">None</span>
                                     {% endif %}
+                                {% elseif tld.bundled and tld.bundled.rdap %}
+                                <div class="font-mono text-xs bg-gray-50 dark:bg-slate-700 px-2 py-1 rounded mb-1 text-gray-900 dark:text-white">{{ tld.bundled.rdap[0] }}</div>
+                                <div class="text-xs text-gray-500 dark:text-slate-400" title="From database/tld-servers.json, used because IANA lists no server">bundled</div>
                                 {% else %}
                                 <span class="text-sm text-gray-400 dark:text-slate-500">None</span>
                                 {% endif %}
@@ -322,6 +344,9 @@
                             <td class="px-6 py-4 whitespace-nowrap">
                                 {% if tld.whois_server %}
                                 <div class="text-sm font-mono text-gray-900 dark:text-white bg-gray-50 dark:bg-slate-700 px-2 py-1 rounded">{{ tld.whois_server }}</div>
+                                {% elseif tld.bundled and tld.bundled.whois %}
+                                <div class="text-sm font-mono text-gray-900 dark:text-white bg-gray-50 dark:bg-slate-700 px-2 py-1 rounded">{{ tld.bundled.whois }}</div>
+                                <div class="text-xs text-gray-500 dark:text-slate-400 mt-1" title="From database/tld-servers.json, used because IANA lists no server">bundled</div>
                                 {% else %}
                                 <span class="text-sm text-gray-400 dark:text-slate-500">None</span>
                                 {% endif %}
@@ -401,12 +426,24 @@
                                 </div>
                             </div>
                             {% endif %}
+                        {% elseif tld.bundled and tld.bundled.rdap %}
+                            <div class="flex items-center">
+                                <i class="fas fa-database text-gray-400 dark:text-slate-500 mr-2 w-4"></i>
+                                <span class="font-mono text-xs bg-gray-50 dark:bg-slate-700 px-2 py-1 rounded text-gray-900 dark:text-white">{{ tld.bundled.rdap[0] }}</span>
+                                <span class="ml-2 text-xs text-gray-500 dark:text-slate-400">bundled</span>
+                            </div>
                         {% endif %}
 
                         {% if tld.whois_server %}
                         <div class="flex items-center">
                             <i class="fas fa-server text-gray-400 dark:text-slate-500 mr-2 w-4"></i>
                             <span class="font-mono text-xs bg-gray-50 dark:bg-slate-700 px-2 py-1 rounded text-gray-900 dark:text-white">{{ tld.whois_server }}</span>
+                        </div>
+                        {% elseif tld.bundled and tld.bundled.whois %}
+                        <div class="flex items-center">
+                            <i class="fas fa-server text-gray-400 dark:text-slate-500 mr-2 w-4"></i>
+                            <span class="font-mono text-xs bg-gray-50 dark:bg-slate-700 px-2 py-1 rounded text-gray-900 dark:text-white">{{ tld.bundled.whois }}</span>
+                            <span class="ml-2 text-xs text-gray-500 dark:text-slate-400">bundled</span>
                         </div>
                         {% endif %}
 

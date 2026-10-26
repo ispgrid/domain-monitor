@@ -11,10 +11,15 @@ class SslService
     private const EXPIRING_SOON_DAYS = 30;
 
     private Logger $logger;
+    private ?int $expiringDays;
 
-    public function __construct()
+    /**
+     * @param int|null $expiringDays Days left at which a certificate counts as expiring (default: largest SSL alert day)
+     */
+    public function __construct(?int $expiringDays = null)
     {
         $this->logger = new Logger('ssl');
+        $this->expiringDays = $expiringDays;
     }
 
     /**
@@ -225,11 +230,24 @@ class SslService
             return 'invalid';
         }
 
-        if ($daysRemaining !== null && $daysRemaining <= self::EXPIRING_SOON_DAYS) {
+        if ($daysRemaining !== null && $daysRemaining <= $this->getExpiringDays()) {
             return 'expiring';
         }
 
         return 'valid';
+    }
+
+    private function getExpiringDays(): int
+    {
+        if ($this->expiringDays === null) {
+            try {
+                $this->expiringDays = (new \App\Models\Setting())->getSslNotificationDays()[0];
+            } catch (\Throwable $e) {
+                $this->expiringDays = self::EXPIRING_SOON_DAYS;
+            }
+        }
+
+        return $this->expiringDays;
     }
 
     private function connect(string $hostname, int $port, bool $verifyPeer): array

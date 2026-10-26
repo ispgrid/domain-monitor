@@ -446,6 +446,9 @@ class DomainController extends Controller
         $groupId = !empty($_POST['notification_group_id']) ? (int)$_POST['notification_group_id'] : null;
         $tagsInput = trim($_POST['tags'] ?? '');
         $userId = \Core\Auth::id();
+        $isActive = isset($_POST['is_active']) ? 1 : 0;
+        $dnsMonitoringEnabled = isset($_POST['dns_monitoring_enabled']) ? 1 : 0;
+        $sslMonitoringEnabled = isset($_POST['ssl_monitoring_enabled']) ? 1 : 0;
 
         // Validate root domain (not a subdomain, respects multi-level TLDs)
         $domainCheck = \App\Helpers\InputValidator::validateRootDomain($domainName);
@@ -515,7 +518,9 @@ class DomainController extends Controller
             'last_checked' => date('Y-m-d H:i:s'),
             'status' => $status,
             'whois_data' => json_encode($whoisData),
-            'is_active' => 1,
+            'is_active' => $isActive,
+            'dns_monitoring_enabled' => $dnsMonitoringEnabled,
+            'ssl_monitoring_enabled' => $sslMonitoringEnabled,
             'user_id' => $userId
         ]);
 
@@ -533,7 +538,10 @@ class DomainController extends Controller
             'user_id' => $userId,
             'status' => $status,
             'expiration_date' => $whoisData['expiration_date'],
-            'notification_group_id' => $groupId
+            'notification_group_id' => $groupId,
+            'is_active' => $isActive,
+            'dns_monitoring_enabled' => $dnsMonitoringEnabled,
+            'ssl_monitoring_enabled' => $sslMonitoringEnabled
         ]);
 
         if ($status !== 'available') {
@@ -1315,6 +1323,7 @@ class DomainController extends Controller
             'dnsIpDetails' => $dnsIpDetails,
             'sslCertificates' => $sslCertificates,
             'sslStats' => $sslStats,
+            'showBilling' => $settingModel->getValue('show_billing_tab', '0') === '1',
             'title' => $domain['domain_name']
         ]);
     }

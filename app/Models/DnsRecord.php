@@ -81,7 +81,8 @@ class DnsRecord extends Model
     /**
      * Save a snapshot of DNS records for a domain.
      * Updates existing records, inserts new ones.
-     * Only auto-removes stale records whose source is 'discovered' — manual and imported records are preserved.
+     * Only auto-removes stale records whose source is 'discovered' — manual and imported records are preserved,
+     * except SOA, which is replaced by the SOA from the lookup.
      *
      * @return array{added: int, updated: int, removed: int}
      */
@@ -128,6 +129,15 @@ class DnsRecord extends Model
             );
             $deleteStmt->execute(array_merge([$domainId], $seenIds));
             $stats['removed'] = $deleteStmt->rowCount();
+
+            // A zone has one SOA: when the lookup returned it, it replaces any other SOA row, imported ones too
+            if (!empty($groupedRecords['SOA'])) {
+                $soaStmt = $this->db->prepare(
+                    "DELETE FROM dns_records WHERE domain_id = ? AND record_type = 'SOA' AND id NOT IN ({$placeholders})"
+                );
+                $soaStmt->execute(array_merge([$domainId], $seenIds));
+                $stats['removed'] += $soaStmt->rowCount();
+            }
         } else {
             $deleteStmt = $this->db->prepare("DELETE FROM dns_records WHERE domain_id = ? AND source = 'discovered'");
             $deleteStmt->execute([$domainId]);

@@ -260,6 +260,63 @@
     </div>
 </div>
 
+{# SSL Certificates #}
+<div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden mb-4">
+    <div class="px-5 py-3 border-b border-gray-200 dark:border-slate-700">
+        <div class="flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center">
+                <i class="fas fa-lock text-gray-400 dark:text-slate-500 mr-2 text-xs"></i>
+                SSL Certificates
+            </h2>
+            {% if sslSummary.total|default(0) > 0 %}
+                <div class="flex items-center space-x-2 text-xs">
+                    <span class="text-gray-500 dark:text-slate-400">{{ sslSummary.total }} monitored</span>
+                    {% if sslSummary.expiring > 0 %}
+                        <span class="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-500/10 text-amber-800 dark:text-amber-400 font-semibold rounded">{{ sslSummary.expiring }} expiring</span>
+                    {% endif %}
+                    {% if sslSummary.issues > 0 %}
+                        <span class="px-1.5 py-0.5 bg-red-100 dark:bg-red-500/10 text-red-800 dark:text-red-400 font-semibold rounded">{{ sslSummary.issues }} failing</span>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    {% if sslSummary.certificates|default([]) is not empty %}
+        <div class="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+            {% for cert in sslSummary.certificates %}
+                {% if cert.status == 'expired' or cert.status == 'invalid' %}
+                    {% set sslBadge = 'bg-red-100 dark:bg-red-500/10 text-red-800 dark:text-red-400' %}
+                {% elseif cert.status == 'expiring' %}
+                    {% set sslBadge = 'bg-amber-100 dark:bg-amber-500/10 text-amber-800 dark:text-amber-400' %}
+                {% else %}
+                    {% set sslBadge = 'bg-green-100 dark:bg-green-500/10 text-green-800 dark:text-green-400' %}
+                {% endif %}
+                <a href="/domains/{{ cert.domain_id }}#ssl" class="flex items-center justify-between p-3 border border-gray-100 dark:border-slate-700 rounded-lg hover:border-gray-300 dark:hover:border-slate-600 hover:shadow-sm transition-all duration-200">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ cert.hostname }}{{ cert.port != 443 ? ':' ~ cert.port : '' }}</p>
+                        <p class="text-xs text-gray-500 dark:text-slate-400 mt-0.5 truncate">
+                            {% if cert.valid_to %}
+                                {{ cert.valid_to|date('M d, Y') }}
+                                <span class="font-semibold ml-1">{{ cert.days_left < 0 ? 'expired' : cert.days_left ~ ' days' }}</span>
+                            {% else %}
+                                No certificate data
+                            {% endif %}
+                            {% if cert.issuer_name %}&middot; {{ cert.issuer_name }}{% endif %}
+                        </p>
+                    </div>
+                    <span class="ml-2 px-2 py-1 rounded text-xs font-medium flex-shrink-0 {{ sslBadge }}">{{ cert.status|capitalize }}</span>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="p-6 text-center">
+            <i class="fas fa-lock text-gray-300 dark:text-slate-600 text-3xl mb-2"></i>
+            <p class="text-sm text-gray-600 dark:text-slate-400">No SSL certificates monitored yet</p>
+            <p class="text-xs text-gray-400 dark:text-slate-500 mt-1">Turn on SSL monitoring for a domain to see its certificates here</p>
+        </div>
+    {% endif %}
+</div>
+
 {# Insights Row #}
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
     {# Registrar Distribution #}

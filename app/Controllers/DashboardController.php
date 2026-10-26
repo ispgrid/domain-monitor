@@ -88,6 +88,13 @@ class DashboardController extends Controller
             $dashTags = $tagModel->getAllWithUsage();
         }
         
+        // SSL certificates expiring soonest (and failing ones) for the dashboard widget
+        $sslSummary = (new \App\Models\SslCertificate())->getDashboardSummary(6, $isolationMode === 'isolated' ? $userId : null);
+        foreach ($sslSummary['certificates'] as &$cert) {
+            $cert['days_left'] = $cert['valid_to'] ? (int)floor((strtotime($cert['valid_to']) - time()) / 86400) : null;
+        }
+        unset($cert);
+
         $this->view('dashboard/index', [
             'recentDomains' => $formattedRecentDomains,
             'expiringThisMonth' => $formattedExpiringDomains,
@@ -100,6 +107,7 @@ class DashboardController extends Controller
             'totalDomainCount' => $totalDomainCount,
             'totalChannels' => $totalChannels,
             'dashTags' => $dashTags,
+            'sslSummary' => $sslSummary,
             'title' => 'Dashboard'
         ]);
     }

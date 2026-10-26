@@ -153,6 +153,44 @@ class NotificationService
     }
 
     /**
+     * Send domain renewed notification via external channels
+     */
+    public function sendDomainRenewedAlert(array $domain, array $notificationChannels, string $oldExpiration): array
+    {
+        $domainName = $domain['domain_name'];
+        $message = "🔄 RENEWED: Domain '$domainName' has been renewed.\n\n" .
+                   "New expiration: " . date('F j, Y', strtotime($domain['expiration_date'])) . "\n" .
+                   "Previous expiration: " . date('F j, Y', strtotime($oldExpiration)) . "\n" .
+                   "Registrar: " . ($domain['registrar'] ?? 'Unknown');
+
+        $results = [];
+
+        foreach ($notificationChannels as $channel) {
+            $config = json_decode($channel['channel_config'], true);
+            $success = $this->send(
+                $channel['channel_type'],
+                $config,
+                $message,
+                [
+                    'subject' => "Domain Renewed: $domainName",
+                    'domain' => $domainName,
+                    'domain_id' => $domain['id'],
+                    'expiration_date' => $domain['expiration_date'],
+                    'old_expiration_date' => $oldExpiration,
+                    'registrar' => $domain['registrar'] ?? 'Unknown'
+                ]
+            );
+
+            $results[] = [
+                'channel' => $channel['channel_type'],
+                'success' => $success
+            ];
+        }
+
+        return $results;
+    }
+
+    /**
      * Format status change notification message
      */
     private function formatStatusChangeMessage(array $domain, string $newStatus, string $oldStatus): string
@@ -311,6 +349,22 @@ class NotificationService
             'domain_registered',
             'Domain Registered',
             "{$domainName} has been registered and is now active",
+            $domainId
+        );
+    }
+
+    /**
+     * Create a domain renewed notification (in-app)
+     * Triggered when the expiration date moves later
+     */
+    public function notifyDomainRenewed(int $userId, string $domainName, int $domainId, string $newExpiration): void
+    {
+        $notificationModel = new \App\Models\Notification();
+        $notificationModel->createNotification(
+            $userId,
+            'domain_renewed',
+            'Domain Renewed',
+            "{$domainName} has been renewed until " . date('M j, Y', strtotime($newExpiration)),
             $domainId
         );
     }
@@ -722,14 +776,15 @@ class NotificationService
         string $hostname,
         int $domainId,
         string $newStatus,
-        ?string $oldStatus = null
+        ?string $oldStatus = null,
+        ?int $daysLeft = null
     ): void {
         $notificationModel = new \App\Models\Notification();
         $notificationModel->createNotification(
             $userId,
             'ssl_status_change',
             $this->getSslNotificationTitle($newStatus),
-            $this->formatSslStatusSummary($domainName, $hostname, $newStatus, $oldStatus),
+            $this->formatSslStatusSummary($domainName, $hostname, $newStatus, $oldStatus, $daysLeft),
             $domainId
         );
     }
@@ -805,10 +860,15 @@ class NotificationService
         string $domainName,
         string $hostname,
         string $newStatus,
-        ?string $oldStatus = null
+        ?string $oldStatus = null,
+        ?int $daysLeft = null
     ): string {
         $hostText = $hostname === $domainName ? $domainName : "{$hostname} ({$domainName})";
         $newLabel = self::getSslStatusLabel($newStatus);
+
+        if ($newStatus === 'expiring' && $daysLeft !== null) {
+            return "{$hostText} - SSL certificate expires in {$daysLeft} day" . ($daysLeft === 1 ? '' : 's');
+        }
 
         if ($oldStatus !== null) {
             $oldLabel = self::getSslStatusLabel($oldStatus);
@@ -828,6 +888,7 @@ class NotificationService
     ): string {
         $domainName = $domain['domain_name'];
         $validToText = $validTo ? date('F j, Y H:i', strtotime($validTo)) : 'Unknown';
+        $daysLeft = $validTo ? (int)floor((strtotime($validTo) - time()) / 86400) : null;
         $oldLabel = $oldStatus !== null ? self::getSslStatusLabel($oldStatus) : null;
 
         return match ($newStatus) {
@@ -839,7 +900,8 @@ class NotificationService
             'expiring' => "⚠️ SSL EXPIRING SOON: {$hostname} is approaching certificate expiration.\n\n" .
                           ($oldLabel ? "Previous status: {$oldLabel}\n" : '') .
                           "Domain: {$domainName}\n" .
-                          "Valid until: {$validToText}",
+                          "Valid until: {$validToText}" .
+                          ($daysLeft !== null ? "\nDays left: {$daysLeft}" : ''),
 
             'expired' => "🚨 SSL EXPIRED: {$hostname} has an expired certificate.\n\n" .
                          ($oldLabel ? "Previous status: {$oldLabel}\n" : '') .
