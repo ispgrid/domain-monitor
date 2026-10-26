@@ -233,6 +233,7 @@ class UpdateService
             $this->logger->info('Applying update files');
             $filesUpdated = $this->applyFiles($stagingDir);
             $result['files_updated'] = $filesUpdated;
+            $this->clearTemplateCache();
 
             // Step 7: Update commit SHA tracking. Done before composer install: once vendor is
             // replaced, classes loaded earlier in this request no longer match the files on disk
@@ -323,6 +324,7 @@ class UpdateService
 
             // Restore files
             $this->restoreBackup($backupPath);
+            $this->clearTemplateCache();
             $this->logger->endOperation('Rollback', ['success' => true]);
 
             return ['success' => true, 'db_restored' => isset($dbRestored) ? $dbRestored : null];
@@ -1371,6 +1373,19 @@ class UpdateService
     /**
      * Recursively remove a directory
      */
+    /**
+     * Delete compiled Twig templates so pages use the template files just installed or restored
+     */
+    private function clearTemplateCache(): void
+    {
+        try {
+            $this->removeDirectory($this->rootPath . '/cache/twig');
+            $this->logger->info('Cleared template cache');
+        } catch (\Throwable $e) {
+            $this->logger->warning('Could not clear template cache', ['error' => $e->getMessage()]);
+        }
+    }
+
     private function removeDirectory(string $dir): void
     {
         if (!is_dir($dir)) {

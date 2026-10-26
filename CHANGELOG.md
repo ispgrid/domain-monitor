@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.7] - 2026-10-26
+
+### Fixed
+- **Pages Not Updated After Update** - With `APP_ENV=production`, pages kept using templates compiled for the old version after an update, rollback or `git pull`, so new options (e.g. SSL alert days, Renewed alerts, monitoring switches on Add Domain) did not appear while the version number did. Changed templates are now recompiled, and the updater clears the template cache after updating and after a rollback
+
 ## [1.2.6] - 2026-10-26
 
 ### Fixed

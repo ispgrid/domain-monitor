@@ -24,7 +24,8 @@ class TwigService
         $this->twig = new Environment($loader, [
             'cache' => $cachePath,
             'debug' => $isDev,
-            'auto_reload' => $isDev,
+            // Always recompile changed templates, so updates and git pulls show up without clearing the cache
+            'auto_reload' => true,
             'strict_variables' => false,
             'autoescape' => 'html',
         ]);
