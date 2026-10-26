@@ -871,6 +871,7 @@ class WhoisService
         }
         
         $registrarFound = false;
+        $registrarHandle = null;
         $currentSection = null;
 
         foreach ($lines as $index => $line) {
@@ -927,19 +928,29 @@ class WhoisService
                     $data['registrar_url'] = $value;
                 }
 
-                // Expiration date
-                if (preg_match('/(expir|expiry|expire|paid-till|renewal|registry.*expir)/i', $key) && !empty($value)) {
+                // Expiration date (.sk format: "Valid Until")
+                if (preg_match('/(expir|expiry|expire|paid-till|renewal|valid until|registry.*expir)/i', $key) && !empty($value)) {
                     $data['expiration_date'] = $this->parseDate($value);
                 }
 
-                // Updated date (UK format: "Last updated")
-                if (preg_match('/(updated date|last updated|updated)/i', $key) && !empty($value)) {
+                // Updated and creation dates: keep the first one, later ones belong to contact
+                // and registrar sections (.sk, .it)
+
+                // Updated date (UK format: "Last updated", .it format: "Last Update")
+                if ($data['updated_date'] === null && preg_match('/(updated date|last update|updated)/i', $key) && !preg_match('/whois database/i', $key) && !empty($value)) {
                     $data['updated_date'] = $this->parseDate($value);
                 }
 
                 // Creation date (UK format: "Registered on")
-                if (preg_match('/(creat|registered|registered on|creation)/i', $key) && !empty($value)) {
+                if ($data['creation_date'] === null && preg_match('/(creat|registered|registered on|creation)/i', $key) && !empty($value)) {
                     $data['creation_date'] = $this->parseDate($value);
+                }
+
+                // .sk format: "Registrar: MARK-0292" is a handle, the name follows in that section
+                if (!$registrarFound && $key === 'registrar' && preg_match('/^(?=.*\d)[A-Z0-9]+(?:-[A-Z0-9]+)+$/', $value)) {
+                    $registrarHandle = $value;
+                    $currentSection = 'registrar';
+                    continue;
                 }
 
                 // Registrar (only take the first valid one found) - for standard format
@@ -1020,9 +1031,9 @@ class WhoisService
             }
         }
 
-        // If no registrar found, set default
+        // If no registrar found, fall back to the handle, then to the default
         if ($data['registrar'] === null) {
-            $data['registrar'] = 'Unknown';
+            $data['registrar'] = $registrarHandle ?? 'Unknown';
         }
         
         $data['raw_data'] = [

@@ -10,6 +10,15 @@ namespace App\Helpers;
 class InputValidator
 {
     /**
+     * Second-level labels that ccTLD registries use for registrations (e.g. .co.uk, .com.br, .net.au).
+     * IANA's TLD list has no multi-level entries, so these are not in tld_registry.
+     */
+    private const CCTLD_SECOND_LEVEL_LABELS = [
+        'ac', 'asn', 'biz', 'co', 'com', 'edu', 'gen', 'go', 'gob', 'gov', 'gouv', 'id', 'info', 'int',
+        'ltd', 'me', 'mil', 'ne', 'net', 'nhs', 'nom', 'or', 'org', 'plc', 'sch', 'web',
+    ];
+
+    /**
      * Validate domain name format
      *
      * @param string $domain Domain name to validate
@@ -87,6 +96,17 @@ class InputValidator
         if (!$matchedTld) {
             $matchedTld = '.' . $parts[count($parts) - 1];
             $labelCount = count($parts) - 1;
+        }
+
+        // Single-label ccTLD match with a known second-level label in front: treat both as the TLD
+        $partCount = count($parts);
+        if ($partCount >= 3
+            && $labelCount === $partCount - 1
+            && strlen($parts[$partCount - 1]) === 2
+            && in_array($parts[$partCount - 2], self::CCTLD_SECOND_LEVEL_LABELS, true)
+        ) {
+            $matchedTld = '.' . $parts[$partCount - 2] . $matchedTld;
+            $labelCount = $partCount - 2;
         }
 
         if ($labelCount !== 1) {

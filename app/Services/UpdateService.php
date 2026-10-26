@@ -214,7 +214,16 @@ class UpdateService
             // Step 5b: Verify extracted archive matches expected commit (integrity check)
             $this->verifyExtractedCommitSha($stagingDir, $type);
 
-            // Step 5c: Check if composer dependencies changed (before we overwrite root)
+            // Step 5c: Stop before touching any files if this server's PHP is too old for the new version
+            $phpError = $this->checkPhpRequirement($stagingDir);
+            if ($phpError !== null) {
+                $this->logger->warning('Update blocked: ' . $phpError);
+                $this->cleanup($archivePath, $stagingDir);
+                $result['errors'][] = $phpError;
+                return $result;
+            }
+
+            // Step 5d: Check if composer dependencies changed (before we overwrite root)
             $composerChanged = $this->checkComposerChanged($stagingDir);
 
             // Step 6: Copy files (respecting protected paths)
@@ -675,6 +684,50 @@ class UpdateService
     }
 
     /**
+     * Check the running PHP version against the "php" requirement in the new composer.json.
+     * Returns an error message if PHP is too old, null if it's fine or the requirement can't be read.
+     */
+    private function checkPhpRequirement(string $stagingDir): ?string
+    {
+        $composerJson = $stagingDir . '/composer.json';
+        if (!file_exists($composerJson)) {
+            return null;
+        }
+
+        $composer = json_decode(file_get_contents($composerJson), true);
+        $constraint = $composer['require']['php'] ?? null;
+        if (!is_string($constraint)) {
+            return null;
+        }
+
+        $minimum = self::minimumPhpVersion($constraint);
+        if ($minimum === null || version_compare(PHP_VERSION, $minimum, '>=')) {
+            return null;
+        }
+
+        return "This update requires PHP {$minimum} or newer, but this server runs PHP " . PHP_VERSION . '. ' .
+            'Upgrade PHP first, then run the update again. No files were changed.';
+    }
+
+    /**
+     * Lowest PHP version allowed by a composer constraint (e.g. ">=8.2", "^8.2", "^8.2 || ^9.0")
+     */
+    private static function minimumPhpVersion(string $constraint): ?string
+    {
+        $minimum = null;
+        foreach (preg_split('/\s*\|\|?\s*/', trim($constraint)) as $alternative) {
+            // Only a leading lower bound counts ("<9.0" or "!=8.3.0" on its own sets no minimum)
+            if (!preg_match('/^(?:>=?|\^|~|==?)?\s*v?(\d+(?:\.\d+){0,2})/', $alternative, $match)) {
+                continue;
+            }
+            if ($minimum === null || version_compare($match[1], $minimum, '<')) {
+                $minimum = $match[1];
+            }
+        }
+        return $minimum;
+    }
+
+    /**
      * Copy files from staging to the application root, respecting protected paths
      */
     private function applyFiles(string $stagingDir): int
@@ -837,7 +890,7 @@ class UpdateService
         $command = PHP_OS_FAMILY === 'Windows' ? "where {$name} 2>NUL" : "which {$name} 2>/dev/null";
         $output = [];
         @exec($command, $output);
-        if (!empty($output[0]) && is_executable(trim($output[0]))) {
+        if (!empty($output[0]) && $this->isExecutableFile(trim($output[0]))) {
             return trim($output[0]);
         }
 
@@ -850,12 +903,35 @@ class UpdateService
             "/usr/sbin/{$name}",
         ];
         foreach ($commonPaths as $path) {
-            if (file_exists($path) && is_executable($path)) {
+            if ($this->isExecutableFile($path)) {
                 return $path;
             }
         }
 
         return null;
+    }
+
+    /**
+     * Check a binary path without tripping open_basedir (shared hosting), where checking
+     * a path outside the allowed directories raises a warning that stops the update
+     */
+    private function isExecutableFile(string $path): bool
+    {
+        $openBasedir = (string)ini_get('open_basedir');
+        if ($openBasedir !== '') {
+            $allowed = false;
+            foreach (explode(PATH_SEPARATOR, $openBasedir) as $dir) {
+                if ($dir !== '' && str_starts_with($path, $dir)) {
+                    $allowed = true;
+                    break;
+                }
+            }
+            if (!$allowed) {
+                return false;
+            }
+        }
+
+        return file_exists($path) && is_executable($path);
     }
 
     // ========================================================================

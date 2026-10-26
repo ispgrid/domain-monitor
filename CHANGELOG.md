@@ -5,6 +5,18 @@ All notable changes to Domain Monitor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.2.1] - 2026-10-26
+
+### Added
+- **Updater PHP Check** - The built-in updater reads the PHP requirement from the new release and stops before changing any files if the server's PHP is too old
+
+### Fixed
+- **Multi-Level ccTLDs** - Domains like `example.co.uk`, `example.com.br` and `example.net.au` were rejected as subdomains ([Hosteroid#91](https://github.com/Hosteroid/domain-monitor/issues/91))
+- **.sk and .it WHOIS Parsing** - Expiry date ("Valid Until") is now read for .sk, and creation/updated dates and registrar no longer come from contact or registrar sections ([Hosteroid#104](https://github.com/Hosteroid/domain-monitor/issues/104))
+- **Updater on Shared Hosting** - Looking for `mysqldump` no longer fails the update when `open_basedir` is set; the backup falls back to the PHP dump ([Hosteroid#73](https://github.com/Hosteroid/domain-monitor/issues/73))
+
 ## [1.2.0] - 2026-10-26
 
 ### Changed
