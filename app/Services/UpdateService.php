@@ -840,6 +840,19 @@ class UpdateService
 
         $this->logger->info('Running composer install', ['command' => $command, 'cwd' => $this->rootPath]);
 
+        // Web server users (e.g. www-data under PHP-FPM) often have no HOME, and Composer
+        // refuses to start without a home directory, so give it one inside the app
+        $composerHome = null;
+        $hasHome = PHP_OS_FAMILY === 'Windows' ? getenv('APPDATA') !== false : getenv('HOME') !== false;
+        if (getenv('COMPOSER_HOME') === false && !$hasHome) {
+            $composerHome = $this->rootPath . '/cache/composer';
+            if (!is_dir($composerHome)) {
+                @mkdir($composerHome, 0755, true);
+            }
+            putenv('COMPOSER_HOME=' . $composerHome);
+            $this->logger->info('No home directory for composer, using COMPOSER_HOME', ['path' => $composerHome]);
+        }
+
         $output = [];
         $returnCode = 0;
         $oldCwd = getcwd();
@@ -853,6 +866,9 @@ class UpdateService
             exec($command, $output, $returnCode);
         } finally {
             @chdir($oldCwd);
+            if ($composerHome !== null) {
+                putenv('COMPOSER_HOME');
+            }
         }
 
         $outputStr = implode("\n", $output);

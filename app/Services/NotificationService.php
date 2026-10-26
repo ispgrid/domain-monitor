@@ -642,7 +642,7 @@ class NotificationService
             $message = "Domain Monitor upgraded from v{$fromVersion} to v{$toVersion} ({$migrationLabel})";
         }
         if ($composerManualRequired) {
-            $message .= ". Composer could not be run here (e.g. exec disabled). If dependencies changed, run \"composer install --no-dev\" manually via SSH or Terminal.";
+            $message .= ". Dependencies changed but Composer could not run here (see logs/updater_*.log). Run \"composer install --no-dev\" manually via SSH or Terminal.";
         }
         $notificationModel = new \App\Models\Notification();
         $notificationModel->createNotification(

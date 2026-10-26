@@ -140,7 +140,7 @@ class UpdateController extends Controller
                 $message .= ' Database migrations are pending - please run them now.';
             }
             if (!empty($result['composer_manual_required'])) {
-                $message .= ' Composer could not be run here (e.g. exec disabled on cPanel). If dependencies changed, run "composer install --no-dev" manually via SSH or Terminal.';
+                $message .= ' Dependencies changed but Composer could not run here (exec disabled or Composer failed, see logs/updater_*.log). Run "composer install --no-dev" manually via SSH or Terminal, as the user that owns the files.';
             }
             $_SESSION['success'] = $message;
             if ($hasMigrations) {

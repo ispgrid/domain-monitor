@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.5] - 2026-10-26
+
+### Fixed
+- **Updater Composer Step** - The updater could not run `composer install` when the web server user has no home directory (common with PHP-FPM or Apache as `www-data` on Ubuntu/Debian), so new dependencies were never installed. It now gives Composer a home directory inside the app (`cache/composer`). If an earlier update logged "HOME or COMPOSER_HOME environment variable must be set", run `composer install --no-dev` once by hand
+- **Updater Message** - When Composer cannot run, the update screen and notification no longer blame a disabled `exec` and point to the updater log
+
 ## [1.2.4] - 2026-10-26
 
 ### Added
