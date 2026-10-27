@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-27
+
+### Changed
+- **Days left count calendar days** - A domain that expires 30 days from today now shows 30 days left, not 29. Reminders go out on the day they are set for instead of a day early: the "1 day" reminder comes the day before expiry and the "expired" alert on the expiry date. The expiry date itself counts as expired, as before
+- The domain's WHOIS tab shows the "Manual" label for hand-entered expiry dates, and Edit Domain says whether the current date was entered by hand or came from WHOIS/RDAP
+
+### Fixed
+- **Status for hand-entered expiry dates** - Domains whose registry gives no expiry date (e.g. .eu) now show "Expiring soon" and "Expired" from the saved date. Before, they stayed "Active" because the registry lists them as active with nameservers. The "expired" alert says the date is the saved one
+- No "registered" alert when an expired domain becomes active again: that is a renewal, covered by the "renewed" alert. A domain that comes back through available, redemption or pending delete still sends "registered"
+- No "renewed" alert when a hand-entered expiry date is replaced by the first real date from the registry
+
+Migrations: 042_update_app_version_v1.5.1.sql
+
 ## [1.5.0] - 2026-10-27
 
 ### Added

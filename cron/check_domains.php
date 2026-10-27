@@ -196,10 +196,11 @@ foreach ($domains as $domain) {
             logMessage("  🔄 Status changed: $oldStatus → $status");
             
             // Determine the notification trigger type for this status change
-            // 'registered' trigger fires when status changes TO 'active' FROM certain statuses
+            // 'registered' trigger fires when status changes TO 'active' FROM certain statuses.
+            // Not from 'expired': that is a renewal (the 'renewed' trigger covers it)
             if ($status === 'available' && in_array('available', $statusTriggers)) {
                 $statusNotificationType = 'domain_available';
-            } elseif ($status === 'active' && in_array($oldStatus, ['available', 'expired', 'pending_delete', 'redemption_period', 'error']) && in_array('registered', $statusTriggers)) {
+            } elseif ($status === 'active' && in_array($oldStatus, ['available', 'pending_delete', 'redemption_period', 'error']) && in_array('registered', $statusTriggers)) {
                 $statusNotificationType = 'domain_registered';
             } elseif ($status === 'expired' && $oldStatus !== 'error' && in_array('expired', $statusTriggers)) {
                 $statusNotificationType = 'domain_expired_status';
@@ -224,6 +225,10 @@ foreach ($domains as $domain) {
             logMessage("  📢 Status notification triggered: $statusNotificationType");
             
             $domainData = $domainModel->find($domain['id']);
+            $savedDateExpired = $statusNotificationType === 'domain_expired_status' && empty($whoisData['expiration_date']);
+            if ($savedDateExpired) {
+                $domainData['expiry_note'] = NotificationService::SAVED_DATE_NOTE;
+            }
             
             // --- External notifications (channels) ---
             if ($domain['notification_group_id']) {
@@ -308,7 +313,7 @@ foreach ($domains as $domain) {
                         match($statusNotificationType) {
                             'domain_available' => $notificationService->notifyDomainAvailable($userId, $domainName, $domain['id']),
                             'domain_registered' => $notificationService->notifyDomainRegistered($userId, $domainName, $domain['id']),
-                            'domain_expired_status' => $notificationService->notifyDomainExpired($userId, $domainName, $domain['id']),
+                            'domain_expired_status' => $notificationService->notifyDomainExpired($userId, $domainName, $domain['id'], $savedDateExpired),
                             'domain_redemption' => $notificationService->notifyDomainRedemption($userId, $domainName, $domain['id']),
                             'domain_pending_delete' => $notificationService->notifyDomainPendingDelete($userId, $domainName, $domain['id']),
                             default => null
@@ -657,6 +662,11 @@ function notifyIfRenewed(array $domain, ?string $newExpiration): void
         return;
     }
 
+    // A hand-entered date replaced by the registry's first real date is not a renewal
+    if (\App\Helpers\DomainHelper::isManualExpiration($domain)) {
+        return;
+    }
+
     // At least a day later, so a registry changing only the time does not count
     if (strtotime($newExpiration) - strtotime($oldExpiration) < 86400) {
         return;
@@ -769,7 +779,7 @@ function notifyExpiry(array $domain, ?string $expirationDate, bool $savedDate, ?
     // Refresh domain data with group info
     $domainData = $domainModel->find($domain['id']);
     if ($savedDate) {
-        $domainData['expiry_note'] = 'The registry did not give an expiry date on this check, so this uses the date saved for the domain. Please confirm it with your registrar.';
+        $domainData['expiry_note'] = NotificationService::SAVED_DATE_NOTE;
     }
     
     // Send external notifications (email, telegram, etc.) if notification group is assigned

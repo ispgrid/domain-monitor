@@ -602,6 +602,7 @@ class DomainController extends Controller
         
         $this->view('domains/edit', [
             'domain' => $domain,
+            'manualExpiration' => \App\Helpers\DomainHelper::isManualExpiration($domain),
             'groups' => $groups,
             'availableTags' => $availableTags,
             'referrer' => $referrer,

@@ -12,6 +12,8 @@ use App\Services\Channels\PushoverChannel;
 
 class NotificationService
 {
+    public const SAVED_DATE_NOTE = 'The registry did not give an expiry date on this check, so this uses the date saved for the domain. Please confirm it with your registrar.';
+
     private array $channels = [];
 
     public function __construct()
@@ -128,6 +130,9 @@ class NotificationService
     public function sendDomainStatusAlert(array $domain, array $notificationChannels, string $newStatus, string $oldStatus): array
     {
         $message = $this->formatStatusChangeMessage($domain, $newStatus, $oldStatus);
+        if (!empty($domain['expiry_note'])) {
+            $message .= "\n\n" . $domain['expiry_note'];
+        }
 
         $results = [];
 

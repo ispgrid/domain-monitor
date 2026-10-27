@@ -149,6 +149,7 @@
                         <p class="text-xs font-semibold text-orange-700 dark:text-orange-400">
                             {% if domain.expiration_date is defined and domain.expiration_date %}
                                 {{ domain.expiration_date|date('M d, Y') }}{% if domain.daysLeft is defined and domain.daysLeft is not null %} ({{ domain.daysLeft }} days){% endif %}
+                                {% if domain.isManualExpiration %}<span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 dark:bg-amber-500/10 text-amber-800 dark:text-amber-400" title="Entered by hand, the registry does not give an expiry date"><i class="fas fa-edit mr-0.5" style="font-size: 8px;"></i>Manual</span>{% endif %}
                             {% else %}-{% endif %}
                         </p>
                     </div>

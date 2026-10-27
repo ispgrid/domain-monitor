@@ -1138,11 +1138,7 @@ class WhoisService
             return null;
         }
 
-        $expiration = strtotime($expirationDate);
-        $now = time();
-        $diff = $expiration - $now;
-
-        return (int)floor($diff / 86400); // 86400 seconds in a day
+        return \App\Helpers\DomainHelper::daysUntil($expirationDate);
     }
 
     /**
@@ -1187,6 +1183,17 @@ class WhoisService
             }
         }
 
+        // A saved (manual) expiry date decides expired / expiring soon. The registry gave
+        // no date, so its "active" status or nameservers say nothing about expiry (e.g. .eu)
+        if ($expirationDate !== null && empty($whoisData['expiration_date'])) {
+            $days = $this->daysUntilExpiration($expirationDate);
+            if ($days !== null && $days <= 0) {
+                return 'expired';
+            }
+            if ($days !== null && $days <= 30) {
+                return 'expiring_soon';
+            }
+        }
         // If domain has "active" status but no expiration date, consider it active
         // This handles TLDs like .nl that don't provide expiration dates via RDAP
         foreach ($statusArray as $status) {
@@ -1236,7 +1243,7 @@ class WhoisService
                 return 'error';
             }
 
-            if ($days < 0) {
+            if ($days <= 0) {
                 return 'expired';
             }
 
