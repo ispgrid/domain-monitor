@@ -36,7 +36,7 @@ class MattermostChannel implements NotificationChannelInterface
                     || (isset($data['hostname']) && $data['hostname'] !== $data['domain']));
             if ($isRichAlert) {
                 $color = $this->getColorByDaysLeft($data['days_left'] ?? null);
-                $title = $data['subject'] ?? '🔔 Domain Monitor Alert';
+                $title = $data['subject'] ?? '🔔 ' . \App\Models\Setting::appName() . ' Alert';
 
                 $fields = [
                     ['short' => true, 'title' => 'Domain', 'value' => $data['domain']]
@@ -58,7 +58,7 @@ class MattermostChannel implements NotificationChannelInterface
                         'color' => $color,
                         'title' => $title,
                         'fields' => $fields,
-                        'footer' => 'Domain Monitor',
+                        'footer' => \App\Models\Setting::appName(),
                         'ts' => time()
                     ]
                 ];

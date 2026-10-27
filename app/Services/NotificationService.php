@@ -627,7 +627,7 @@ class NotificationService
         $notificationModel->createNotification(
             $userId,
             'system_welcome',
-            'Welcome to Domain Monitor! 🎉',
+            'Welcome to ' . \App\Models\Setting::appName() . '! 🎉',
             "Hi {$username}! Your account is ready. Start by adding your first domain to monitor.",
             null
         );
@@ -643,15 +643,16 @@ class NotificationService
 
         // Detect if $toVersion is a commit SHA (7-40 hex chars) rather than a semver string
         $isCommitSha = (bool) preg_match('/^[a-f0-9]{7,40}$/i', $toVersion);
+        $appName = \App\Models\Setting::appName();
 
         if ($isCommitSha) {
             // Hotfix: file-only update identified by commit SHA
-            $message = "Domain Monitor v{$fromVersion} has been updated (hotfix {$toVersion}, {$migrationLabel})";
+            $message = "{$appName} v{$fromVersion} has been updated (hotfix {$toVersion}, {$migrationLabel})";
         } elseif ($fromVersion === $toVersion) {
             // Hotfix: same version, just file updates
-            $message = "Domain Monitor v{$toVersion} has been updated ({$migrationLabel})";
+            $message = "{$appName} v{$toVersion} has been updated ({$migrationLabel})";
         } else {
-            $message = "Domain Monitor upgraded from v{$fromVersion} to v{$toVersion} ({$migrationLabel})";
+            $message = "{$appName} upgraded from v{$fromVersion} to v{$toVersion} ({$migrationLabel})";
         }
         if ($composerManualRequired) {
             $message .= ". Dependencies changed but Composer could not run here (see logs/updater_*.log). Run \"composer install --no-dev\" manually via SSH or Terminal.";
@@ -695,7 +696,8 @@ class NotificationService
         $notificationModel = new \App\Models\Notification();
         $title = 'Update Available';
         if ($type === 'release') {
-            $message = "A new version of Domain Monitor is available: v{$latestVersion} (you have v{$currentVersion}). Go to Settings → Updates to apply.";
+            $appName = \App\Models\Setting::appName();
+            $message = "A new version of {$appName} is available: v{$latestVersion} (you have v{$currentVersion}). Go to Settings → Updates to apply.";
         } else {
             $msg = $commitsBehind
                 ? "{$commitsBehind} new commit(s) are available on the main branch. Go to Settings → Updates to apply the hotfix."

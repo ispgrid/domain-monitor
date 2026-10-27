@@ -7,7 +7,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title|default('Authentication') }} - {{ appSettings.app_name|default('Domain Monitor') }}</title>
+    <title>{{ title|default('Authentication') }} - {{ appName }}</title>
     
     {# Tailwind CSS #}
     <script src="https://cdn.tailwindcss.com"></script>
@@ -160,9 +160,9 @@
     
     {# Logo - Top Left #}
     <div class="fixed top-4 left-4 z-20 flex items-center gap-3">
-        <img src="{{ base_url }}/assets/logo.svg" alt="{{ appSettings.app_name|default('Domain Monitor') }}" class="h-14 w-auto drop-shadow-md">
+        <img src="{{ base_url }}/assets/logo.svg" alt="{{ appName }}" class="h-14 w-auto drop-shadow-md">
         <div class="flex flex-col">
-            <span class="text-xl font-bold text-slate-800 dark:text-white tracking-tight">{{ appSettings.app_name|default('Domain Monitor') }}</span>
+            <span class="text-xl font-bold text-slate-800 dark:text-white tracking-tight">{{ appName }}</span>
             <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Track your domains</span>
         </div>
     </div>
@@ -183,7 +183,7 @@
         {# Footer #}
         <div class="text-center mt-6">
             <p class="text-slate-500 dark:text-slate-400 text-xs">
-                © {{ "now"|date("Y") }} <a href="https://github.com/ispgrid/domain-monitor" target="_blank" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-150" title="Visit {{ appSettings.app_name|default('Domain Monitor') }} on GitHub">{{ appSettings.app_name|default('Domain Monitor') }}</a>. All rights reserved.
+                © {{ "now"|date("Y") }} <a href="https://github.com/ispgrid/domain-monitor" target="_blank" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-150" title="Visit {{ appName }} on GitHub">{{ appName }}</a>. All rights reserved.
             </p>
         </div>
     </div>

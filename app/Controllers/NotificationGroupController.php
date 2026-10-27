@@ -840,7 +840,7 @@ class NotificationGroupController extends Controller
 
         $channelName = $channelNames[$channelType] ?? ucfirst($channelType);
         
-        return "🧪 **Test Message from Domain Monitor**\n\n" .
+        return "🧪 **Test Message from " . \App\Models\Setting::appName() . "**\n\n" .
                "This is a test notification to verify your {$channelName} channel configuration.\n\n" .
                "✅ If you're seeing this message, your {$channelName} integration is working correctly!\n\n" .
                "Test sent at: " . date('Y-m-d H:i:s T');

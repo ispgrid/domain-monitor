@@ -529,7 +529,7 @@ class EmailHelper
             return "⚠️ Domain Expiration Alert: {$data['domain']} ({$daysLeft} days)";
         }
 
-        return "Domain Monitor Alert";
+        return Setting::appName() . " Alert";
     }
 
     /**

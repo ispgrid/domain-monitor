@@ -53,7 +53,7 @@ class SlackChannel implements NotificationChannelInterface
 
     private function createBlocks(string $message, array $data): array
     {
-        $headerText = $data['subject'] ?? '🔔 Domain Monitor Alert';
+        $headerText = $data['subject'] ?? '🔔 ' . \App\Models\Setting::appName() . ' Alert';
 
         $blocks = [
             [

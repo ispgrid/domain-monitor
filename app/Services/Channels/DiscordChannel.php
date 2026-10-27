@@ -52,7 +52,7 @@ class DiscordChannel implements NotificationChannelInterface
 
     private function createEmbed(string $message, array $data): array
     {
-        $title = $data['subject'] ?? '🔔 Domain Monitor Alert';
+        $title = $data['subject'] ?? '🔔 ' . \App\Models\Setting::appName() . ' Alert';
         $color = $this->getColorByDaysLeft($data['days_left'] ?? null);
 
         $embed = [
@@ -61,7 +61,7 @@ class DiscordChannel implements NotificationChannelInterface
             'color' => $color,
             'timestamp' => date('c'),
             'footer' => [
-                'text' => 'Domain Monitor'
+                'text' => \App\Models\Setting::appName()
             ]
         ];
 

@@ -132,7 +132,20 @@ class Setting extends Model
      */
     public function getAppVersion(): string
     {
-        return $this->getValue('app_version', '1.4.0');
+        return $this->getValue('app_version', '1.4.1');
+    }
+
+    /**
+     * App name from Settings → Application, falling back to "Domain Monitor"
+     */
+    public static function appName(): string
+    {
+        try {
+            $name = trim((string) (new self())->getValue('app_name', ''));
+            return $name !== '' ? $name : 'Domain Monitor';
+        } catch (\Throwable $e) {
+            return 'Domain Monitor';
+        }
     }
 
     /**

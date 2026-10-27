@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-10-27
+
+### Fixed
+- **App name setting** - The name set in **Settings → Application** now shows in the sidebar, the footer and the sign-in, register and password pages. It was only used in the browser tab title and emails (Hosteroid/domain-monitor#106)
+- Names with `&` or `<` no longer show as `&amp;` in the browser tab title
+
+### Changed
+- Slack, Discord, Mattermost and Pushover alerts, channel test messages, the welcome and update notifications, and new 2FA setups (the name shown in your authenticator app) use the app name instead of "Domain Monitor". 2FA codes you already set up keep working
+
+Migrations: 040_update_app_version_v1.4.1.sql
+
 ## [1.4.0] - 2026-10-27
 
 ### Added

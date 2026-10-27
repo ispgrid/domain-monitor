@@ -46,7 +46,7 @@ class PushoverChannel implements NotificationChannelInterface
             } elseif (isset($data['domain'])) {
                 $payload['title'] = '🔔 Domain Expiration Alert: ' . $data['domain'];
             } else {
-                $payload['title'] = '🔔 Domain Monitor Notification';
+                $payload['title'] = '🔔 ' . \App\Models\Setting::appName() . ' Notification';
             }
 
             // Optional: Add device (if configured)

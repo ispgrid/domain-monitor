@@ -65,7 +65,7 @@ class TwoFactorController extends Controller
         }
 
         $secret = $_SESSION['2fa_setup_secret'];
-        $qrCodeUrl = $this->twoFactorService->generateQrCodeDataUri($user['email'], $secret);
+        $qrCodeUrl = $this->twoFactorService->generateQrCodeDataUri($user['email'], $secret, \App\Models\Setting::appName());
 
         $this->view('2fa/setup', [
             'user' => $user,

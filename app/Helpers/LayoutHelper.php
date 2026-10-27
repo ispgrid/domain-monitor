@@ -176,7 +176,7 @@ class LayoutHelper
             $appSettings = $settingModel->getAppSettings();
             
             return [
-                'app_name' => htmlspecialchars($appSettings['app_name']),
+                'app_name' => $appSettings['app_name'],
                 'app_timezone' => $appSettings['app_timezone'],
                 'app_version' => $appSettings['app_version']
             ];
