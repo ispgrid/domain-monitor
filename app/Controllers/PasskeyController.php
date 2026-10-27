@@ -5,6 +5,7 @@ namespace App\Controllers;
 use Core\Auth;
 use Core\Controller;
 use Core\Csrf;
+use App\Models\AuditLog;
 use App\Models\Passkey;
 use App\Models\Setting;
 use App\Models\User;
@@ -92,6 +93,7 @@ class PasskeyController extends Controller
         } catch (\Exception $e) {
             // Don't block login if notification fails
         }
+        AuditLog::record('auth.login', 'Signed in with a passkey');
 
         $_SESSION['success'] = 'Login successful! Welcome back, ' . htmlspecialchars($user['full_name']) . '.';
         $this->json(['redirect' => '/']);
@@ -140,6 +142,7 @@ class PasskeyController extends Controller
         } catch (\Exception $e) {
             // Non-critical
         }
+        AuditLog::record('auth.passkey_added', 'Added passkey "' . $passkey['name'] . '"');
 
         $_SESSION['success'] = 'Passkey "' . $passkey['name'] . '" added. You can now sign in with it.';
         $this->json(['redirect' => '/profile#passkeys']);
@@ -176,6 +179,7 @@ class PasskeyController extends Controller
 
         if ($passkey && $this->passkeyModel->deleteForUser($id, Auth::id())) {
             $this->logger->info('Passkey removed', ['user_id' => Auth::id(), 'passkey_id' => $id]);
+            AuditLog::record('auth.passkey_removed', 'Removed passkey "' . $passkey['name'] . '"');
             $_SESSION['success'] = 'Passkey "' . $passkey['name'] . '" removed. Also delete it from your device or password manager.';
         } else {
             $_SESSION['error'] = 'Passkey not found';

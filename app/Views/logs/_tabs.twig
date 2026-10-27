@@ -1,0 +1,28 @@
+{# Logs header and tab bar, shared by all Logs pages and the Errors pages #}
+{% set logTabs = [
+    {key: 'overview', label: 'Overview', icon: 'fa-gauge', url: '/logs'},
+    {key: 'cron', label: 'Cron Runs', icon: 'fa-clock', url: '/logs/cron'},
+    {key: 'updates', label: 'Updates', icon: 'fa-cloud-arrow-down', url: '/logs/updates'},
+    {key: 'commands', label: 'Commands', icon: 'fa-terminal', url: '/logs/commands'},
+    {key: 'notifications', label: 'Notifications', icon: 'fa-paper-plane', url: '/logs/notifications'},
+    {key: 'activity', label: 'Activity', icon: 'fa-user-clock', url: '/logs/activity'},
+    {key: 'errors', label: 'Errors', icon: 'fa-bug', url: '/errors'},
+    {key: 'files', label: 'Files', icon: 'fa-file-lines', url: '/logs/files'}
+] %}
+<div class="mb-5">
+    <nav class="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-slate-700 -mx-1 px-1" aria-label="Log sections">
+        {% for tab in logTabs %}
+        <a href="{{ tab.url }}" class="flex items-center gap-2 px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors
+            {{ activeTab == tab.key ? 'border-primary text-primary font-medium' : 'border-transparent text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-slate-500' }}"
+            {{ activeTab == tab.key ? 'aria-current="page"' : '' }}>
+            <i class="fas {{ tab.icon }} text-xs"></i>
+            {{ tab.label }}
+            {% if tab.key == 'errors' and logsStatus.count|default(0) - logsStatus.cron_problems|default([])|length > 0 %}
+            <span class="text-xs font-semibold px-1.5 rounded bg-orange-100 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400">{{ logsStatus.count - logsStatus.cron_problems|length }}</span>
+            {% elseif tab.key == 'cron' and logsStatus.cron_problems|default([]) is not empty %}
+            <span class="text-xs font-semibold px-1.5 rounded bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400">{{ logsStatus.cron_problems|length }}</span>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </nav>
+</div>

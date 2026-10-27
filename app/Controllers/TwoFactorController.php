@@ -127,6 +127,7 @@ class TwoFactorController extends Controller
         // Enable 2FA
         if ($this->twoFactorService->enableTwoFactor($userId, $secret, $backupCodes)) {
             $_SESSION['success'] = 'Two-factor authentication enabled successfully!';
+            \App\Models\AuditLog::record('auth.2fa_enabled', 'Turned on two-factor authentication');
             
             // Clear the setup secret from session
             unset($_SESSION['2fa_setup_secret']);
@@ -318,6 +319,7 @@ class TwoFactorController extends Controller
             } catch (\Exception $e) {
                 // Don't block login if notification fails
             }
+            \App\Models\AuditLog::record('auth.login', "Signed in with password and 2FA ($method)");
 
             $_SESSION['success'] = 'Login successful! Welcome back, ' . htmlspecialchars($user['full_name']) . '.';
             $this->redirect('/');
@@ -330,6 +332,10 @@ class TwoFactorController extends Controller
             } catch (\Exception $e) {
                 // Don't block response if notification fails
             }
+            \App\Models\AuditLog::record('auth.login_failed', 'Sign-in failed: wrong 2FA code', [
+                'user_id' => $userId,
+                'username' => $user['username'],
+            ]);
 
             $_SESSION['error'] = 'Invalid verification code. Please try again.';
             $this->redirect('/2fa/verify');
@@ -463,6 +469,7 @@ class TwoFactorController extends Controller
 
         if ($this->twoFactorService->disableTwoFactor($userId)) {
             $_SESSION['success'] = 'Two-factor authentication has been disabled';
+            \App\Models\AuditLog::record('auth.2fa_disabled', 'Turned off two-factor authentication');
         } else {
             $_SESSION['error'] = 'Failed to disable two-factor authentication';
         }

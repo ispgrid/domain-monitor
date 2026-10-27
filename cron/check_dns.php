@@ -83,6 +83,7 @@ try {
 $logFile   = __DIR__ . '/../logs/dns_cron.log';
 $cron      = new CronHelper($logFile);
 $startTime = microtime(true);
+$cron->startRun('dns');
 
 logMessage("=== Starting DNS check cron job ===");
 
@@ -218,6 +219,18 @@ foreach ($domains as $domain) {
 
 $settingModel->setValue('last_dns_check_run', date('Y-m-d H:i:s'));
 printSummary($stats, $startTime);
+
+$cron->finishRun($stats['checked'], $stats['notifications_sent'], $stats['errors'], [
+    'checked' => $stats['checked'],
+    'skipped_unresolved' => $stats['skipped_unresolved'],
+    'changes_detected' => $stats['changes_detected'],
+    'records_added' => $stats['records_added'],
+    'records_removed' => $stats['records_removed'],
+    'records_changed' => $stats['records_changed'],
+    'notifications_sent' => $stats['notifications_sent'],
+    'in_app_notifications' => $stats['in_app_notifications'],
+    'errors' => $stats['errors'],
+]);
 exit(0);
 
 

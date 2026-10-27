@@ -1,13 +1,15 @@
 {% extends 'layout/base.twig' %}
 
 {% set title = 'Error Logs' %}
-{% set pageTitle = 'Error Logs' %}
+{% set pageTitle = 'Logs' %}
 {% set pageDescription = 'Monitor and manage application errors' %}
 {% set pageIcon = 'fas fa-bug' %}
 
 {% set currentFilters = filters|default({resolved: '', type: '', sort: 'last_occurred_at', order: 'desc'}) %}
 
 {% block content %}
+{% include 'logs/_tabs.twig' with {activeTab: 'errors'} %}
+
 <!-- Statistics Cards -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
     <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-5 hover:shadow-md transition-shadow duration-200">

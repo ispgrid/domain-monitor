@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use Core\Controller;
 use Core\Auth;
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Models\SessionManager;
 use App\Models\RememberToken;
@@ -174,6 +175,9 @@ class ProfileController extends Controller
 
         // Update user
         $this->userModel->update($userId, $updateData);
+        AuditLog::record('profile.updated', 'Updated own profile', [
+            'changes' => AuditLog::diff($currentUser, ['full_name' => $fullName, 'email' => $email]),
+        ]);
 
         // Update session
         $_SESSION['full_name'] = $fullName;
@@ -248,6 +252,7 @@ class ProfileController extends Controller
 
             // Update password
             $this->userModel->changePassword($userId, $newPassword);
+            AuditLog::record('profile.password_changed', 'Changed own password');
 
             $_SESSION['success'] = 'Password changed successfully';
             $this->redirect('/profile');
@@ -279,6 +284,10 @@ class ProfileController extends Controller
 
         // Delete user (cascade will handle related records)
         $this->userModel->delete($userId);
+        AuditLog::record('profile.deleted', "Deleted own account \"{$user['username']}\"", [
+            'user_id' => null,
+            'username' => $user['username'],
+        ]);
 
         // Logout
         session_destroy();

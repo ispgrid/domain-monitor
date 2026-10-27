@@ -1,0 +1,95 @@
+{% extends 'layout/base.twig' %}
+{% import 'logs/_macros.twig' as m %}
+
+{% set actionLabels = {'update': 'Update', 'rollback': 'Rollback', 'migration': 'Database update'} %}
+{% set title = actionLabels[update.action]|default(update.action) ~ ' #' ~ update.id ~ ' - Logs' %}
+{% set pageTitle = 'Logs' %}
+
+{% block content %}
+{% include 'logs/_tabs.twig' %}
+
+<div class="mb-4">
+    <a href="/logs/updates" class="text-sm text-primary hover:underline"><i class="fas fa-arrow-left mr-1"></i>All updates</a>
+</div>
+
+<div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-5 mb-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+            {{ actionLabels[update.action]|default(update.action) }}
+            <span class="font-mono text-base">{{ update.from_version ?: '?' }} → {{ update.to_version ?: '?' }}</span>
+        </h2>
+        {{ m.run_status(update.status) }}
+    </div>
+    <dl class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div><dt class="text-gray-500 dark:text-slate-400">Started</dt><dd class="text-gray-900 dark:text-white">{{ update.started_at|date('M d, Y H:i:s') }}</dd></div>
+        <div><dt class="text-gray-500 dark:text-slate-400">Duration</dt><dd class="text-gray-900 dark:text-white">{{ m.duration(update.duration_ms) }}</dd></div>
+        <div><dt class="text-gray-500 dark:text-slate-400">By</dt><dd class="text-gray-900 dark:text-white">{{ update.username ?: '—' }}</dd></div>
+        <div><dt class="text-gray-500 dark:text-slate-400">Kind</dt><dd class="text-gray-900 dark:text-white">{{ update.update_type ? update.update_type|capitalize : '—' }}</dd></div>
+        {% if update.action == 'update' %}
+        <div><dt class="text-gray-500 dark:text-slate-400">Files updated</dt><dd class="text-gray-900 dark:text-white">{{ update.files_updated ?? '—' }}</dd></div>
+        <div><dt class="text-gray-500 dark:text-slate-400">Composer</dt><dd class="text-gray-900 dark:text-white">{{ {'ran': 'Ran', 'failed': 'Failed, run it by hand', 'manual': 'Not allowed here, run it by hand', 'not_needed': 'Not needed'}[update.composer_status]|default('—') }}</dd></div>
+        {% endif %}
+        {% if update.db_backup_path %}
+        <div class="col-span-2"><dt class="text-gray-500 dark:text-slate-400">Database backup</dt><dd class="text-gray-900 dark:text-white font-mono text-xs break-all">{{ update.db_backup_path }}</dd></div>
+        {% endif %}
+        {% if update.file_backup_path %}
+        <div class="col-span-2"><dt class="text-gray-500 dark:text-slate-400">File backup</dt><dd class="text-gray-900 dark:text-white font-mono text-xs break-all">{{ update.file_backup_path }}</dd></div>
+        {% endif %}
+    </dl>
+
+    {% if update.error_message %}
+    <div class="mt-4 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-sm text-red-800 dark:text-red-300">
+        <i class="fas fa-exclamation-triangle mr-2"></i>{{ update.error_message }}
+    </div>
+    {% endif %}
+    {% if update.details_data.db_backup_warning is defined %}
+    <div class="mt-4 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-sm text-amber-800 dark:text-amber-300">
+        <i class="fas fa-database mr-2"></i>Database backup skipped: {{ update.details_data.db_backup_warning }}
+    </div>
+    {% endif %}
+    {% if update.details_data.db_restored is defined and update.details_data.db_restored is same as(false) %}
+    <div class="mt-4 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-sm text-amber-800 dark:text-amber-300">
+        <i class="fas fa-database mr-2"></i>Files were restored but the database could not be restored. Import the database backup by hand.
+    </div>
+    {% endif %}
+    {% if update.details_data.migrations is defined and update.details_data.migrations is not empty %}
+    <div class="mt-4">
+        <p class="text-sm text-gray-500 dark:text-slate-400 mb-1">Migrations</p>
+        <ul class="text-xs font-mono text-gray-800 dark:text-slate-200 space-y-0.5">
+            {% for migration in update.details_data.migrations %}<li>{{ migration }}</li>{% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+
+{% if commands is not empty %}
+<div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden mb-4">
+    <div class="px-5 py-3 border-b border-gray-200 dark:border-slate-700">
+        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Commands run</h3>
+    </div>
+    <ul class="divide-y divide-gray-100 dark:divide-slate-700">
+        {% for c in commands %}
+        <li>
+            <a href="/logs/commands/{{ c.id }}" class="flex items-center justify-between gap-3 px-5 py-2.5 hover:bg-gray-50 dark:hover:bg-slate-700/50 text-sm">
+                <span class="text-gray-900 dark:text-white">{{ c.label }}</span>
+                <span class="text-xs {{ c.exit_code == 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400' }}">exit {{ c.exit_code ?? '?' }} · {{ m.duration(c.duration_ms) }}</span>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+    <div class="px-5 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
+        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Log lines</h3>
+        {% if update.log_file %}<a href="/logs/files/view?file={{ update.log_file|url_encode }}" class="text-sm text-primary hover:underline">{{ update.log_file }}</a>{% endif %}
+    </div>
+    {% if logLines is not empty %}
+    <pre class="p-4 text-xs leading-5 font-mono bg-gray-50 dark:bg-slate-900 overflow-auto max-h-[60vh] whitespace-pre-wrap break-words">{% for line in logLines %}<span class="{{ line.level in ['ERROR', 'CRITICAL'] ? 'text-red-700 dark:text-red-400' : (line.level == 'WARNING' ? 'text-amber-700 dark:text-amber-400' : 'text-gray-800 dark:text-slate-200') }}">{{ line.text }}</span>
+{% endfor %}</pre>
+    {% else %}
+    <p class="p-5 text-sm text-gray-500 dark:text-slate-400">No log lines found for this time (the log file may have been deleted).</p>
+    {% endif %}
+</div>
+{% endblock %}

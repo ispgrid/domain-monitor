@@ -1,0 +1,83 @@
+{% extends 'layout/base.twig' %}
+{% import 'logs/_macros.twig' as m %}
+
+{% set title = 'Activity - Logs' %}
+{% set pageTitle = 'Logs' %}
+{% set actionIcons = {
+    'auth': 'sign-in-alt', 'profile': 'user', 'settings': 'cog', 'domain': 'globe',
+    'user': 'users', 'group': 'bell', 'update': 'cloud-arrow-down', 'logs': 'list-alt'
+} %}
+
+{% block content %}
+{% include 'logs/_tabs.twig' %}
+
+{% if not tablesReady %}{{ m.not_ready() }}{% endif %}
+
+<form method="GET" action="/logs/activity" class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 mb-4 flex flex-wrap items-end gap-3">
+    <div>
+        <label class="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Area</label>
+        <select name="category" class="{{ m.select_class() }}">
+            <option value="">Everything</option>
+            {% for key, label in categories %}<option value="{{ key }}" {{ filters.category == key ? 'selected' : '' }}>{{ label }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">User</label>
+        <select name="user" class="{{ m.select_class() }}">
+            <option value="">All users</option>
+            {% for name in usernames %}<option value="{{ name }}" {{ filters.user == name ? 'selected' : '' }}>{{ name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="flex-1 min-w-[12rem]">
+        <label class="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Search</label>
+        <input type="text" name="q" value="{{ filters.q }}" placeholder="Text or IP address" class="w-full {{ m.select_class() }}">
+    </div>
+    <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark text-sm font-medium"><i class="fas fa-filter mr-2"></i>Apply</button>
+    <a href="/logs/activity" class="px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium">Clear</a>
+</form>
+
+<div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+    {% if entries is not empty %}
+    <ul class="divide-y divide-gray-200 dark:divide-slate-700">
+        {% for entry in entries %}
+        {% set area = entry.action|split('.')|first %}
+        {% set bad = entry.action ends with 'failed' %}
+        <li class="px-5 py-3 flex gap-3">
+            <div class="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center {{ bad ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400' : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400' }}">
+                <i class="fas fa-{{ actionIcons[area]|default('circle') }} text-sm"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+                <p class="text-sm text-gray-900 dark:text-white">{{ entry.description }}</p>
+                <p class="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                    {{ entry.created_at|date('M d, Y H:i:s') }} · {{ entry.username ?: 'System' }}{{ entry.ip_address ? ' · ' ~ entry.ip_address : '' }}
+                    · <span class="font-mono">{{ entry.action }}</span>
+                </p>
+                {% if entry.changes_data is not empty %}
+                <details class="mt-1">
+                    <summary class="text-xs text-primary cursor-pointer select-none">Details</summary>
+                    <div class="mt-1 text-xs bg-gray-50 dark:bg-slate-900 rounded-lg p-2 space-y-0.5 font-mono text-gray-700 dark:text-slate-300 break-all">
+                        {% for key, value in entry.changes_data %}
+                        <div>
+                            <span class="text-gray-500 dark:text-slate-400">{{ key }}:</span>
+                            {% if value is iterable and value.old is defined %}
+                                {{ value.old is iterable ? value.old|json_encode : value.old }} → {{ value.new is iterable ? value.new|json_encode : value.new }}
+                            {% elseif value is iterable %}
+                                {{ value|json_encode }}
+                            {% else %}
+                                {{ value }}
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </details>
+                {% endif %}
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    {{ m.empty_state('user-clock', 'No activity found', filters.category or filters.user or filters.q ? 'Nothing matches these filters.' : 'Sign-ins and changes made from v1.4.0 on appear here.') }}
+    {% endif %}
+</div>
+{{ m.pagination(pagination, filters) }}
+{% endblock %}

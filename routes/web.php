@@ -19,6 +19,7 @@ use App\Controllers\TwoFactorController;
 use App\Controllers\TagController;
 use App\Controllers\UpdateController;
 use App\Controllers\PasskeyController;
+use App\Controllers\LogsController;
 
 $router = Application::$router;
 
@@ -153,6 +154,7 @@ $router->post('/settings/update-two-factor', [SettingsController::class, 'update
 $router->post('/settings/test-email', [SettingsController::class, 'testEmail']);
 $router->post('/settings/test-cron', [SettingsController::class, 'testCron']);
 $router->post('/settings/clear-logs', [SettingsController::class, 'clearLogs']);
+$router->post('/settings/update-logs', [SettingsController::class, 'updateLogs']);
 $router->post('/settings/toggle-isolation', [SettingsController::class, 'toggleIsolationMode']);
 
 // Updates (Admin Only)
@@ -209,7 +211,25 @@ $router->post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus
 $router->post('/users/bulk-toggle-status', [UserController::class, 'bulkToggleStatus']);
 $router->post('/users/bulk-delete', [UserController::class, 'bulkDelete']);
 
-// Error Logs (Admin Only)
+// Logs (Admin Only)
+$router->get('/logs', [LogsController::class, 'index']);
+$router->post('/logs/cleanup', [LogsController::class, 'cleanup']);
+$router->get('/logs/cron', [LogsController::class, 'cron']);
+$router->post('/logs/cron/run', [LogsController::class, 'cronRun']);
+$router->get('/logs/cron/{id}', [LogsController::class, 'cronShow']);
+$router->get('/logs/cron/{id}/status', [LogsController::class, 'cronStatus']);
+$router->get('/logs/updates', [LogsController::class, 'updates']);
+$router->get('/logs/updates/{id}', [LogsController::class, 'updateShow']);
+$router->get('/logs/commands', [LogsController::class, 'commands']);
+$router->get('/logs/commands/{id}', [LogsController::class, 'commandShow']);
+$router->get('/logs/notifications', [LogsController::class, 'notifications']);
+$router->get('/logs/activity', [LogsController::class, 'activity']);
+$router->get('/logs/files', [LogsController::class, 'files']);
+$router->get('/logs/files/view', [LogsController::class, 'fileView']);
+$router->get('/logs/files/download', [LogsController::class, 'fileDownload']);
+$router->post('/logs/files/delete', [LogsController::class, 'fileDelete']);
+
+// Error Logs (Admin Only, shown as the Errors tab of Logs)
 $router->get('/errors', [ErrorLogController::class, 'index']);
 $router->get('/errors/{id}', [ErrorLogController::class, 'show']);
 $router->post('/errors/{id}/resolve', [ErrorLogController::class, 'markResolved']);

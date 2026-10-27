@@ -7,6 +7,7 @@ use Core\Auth;
 use App\Services\UpdateService;
 use App\Services\NotificationService;
 use App\Models\Setting;
+use App\Models\AuditLog;
 use App\Services\Logger;
 
 class UpdateController extends Controller
@@ -21,6 +22,9 @@ class UpdateController extends Controller
         $this->updateService = new UpdateService();
         $this->settingModel = new Setting();
         $this->logger = new Logger('updater');
+
+        // Load now: after a rollback to an older version the class file may no longer exist
+        class_exists(AuditLog::class);
     }
 
     /**
@@ -101,6 +105,13 @@ class UpdateController extends Controller
 
         $result = $this->updateService->performUpdate($type);
 
+        AuditLog::record(
+            $result['success'] ? 'update.applied' : 'update.failed',
+            $result['success']
+                ? "Updated from v{$result['from_version']} to " . ($result['to_version'] ?? 'latest') . " ({$type})"
+                : "Update ({$type}) failed: " . implode('; ', $result['errors'])
+        );
+
         if ($result['success']) {
             $fromVersion = $result['from_version'];
             $toVersion = $result['to_version'] ?? 'latest';
@@ -175,6 +186,11 @@ class UpdateController extends Controller
         ]);
 
         $result = $this->updateService->rollback();
+
+        AuditLog::record(
+            $result['success'] ? 'update.rolled_back' : 'update.rollback_failed',
+            $result['success'] ? 'Rolled back to the previous version' : ($result['error'] ?? 'Rollback failed')
+        );
 
         if ($result['success']) {
             if (isset($result['db_restored']) && !$result['db_restored']) {

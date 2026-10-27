@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use Core\Controller;
 use Core\Auth;
+use App\Models\AuditLog;
 use App\Models\User;
 
 class UserController extends Controller
@@ -191,6 +192,7 @@ class UserController extends Controller
                 ]);
             }
 
+            AuditLog::record('user.created', "Created user \"$username\"", ['entity_type' => 'user', 'entity_id' => (int)$userId]);
             $_SESSION['success'] = 'User created successfully';
             $this->redirect('/users');
 
@@ -366,6 +368,15 @@ class UserController extends Controller
                 $this->userModel->changePassword($userId, $password);
             }
 
+            $changes = AuditLog::diff($user, $updateData);
+            if (!empty($password)) {
+                $changes['password'] = ['old' => '***', 'new' => '*** (changed)'];
+            }
+            AuditLog::record('user.updated', "Updated user \"{$user['username']}\"", [
+                'entity_type' => 'user',
+                'entity_id' => (int)$userId,
+                'changes' => $changes,
+            ]);
             $_SESSION['success'] = 'User updated successfully';
             $this->redirect('/users');
 
@@ -416,6 +427,7 @@ class UserController extends Controller
 
         try {
             $this->userModel->delete($userId);
+            AuditLog::record('user.deleted', "Deleted user \"{$user['username']}\"", ['entity_type' => 'user', 'entity_id' => (int)$userId]);
             $_SESSION['success'] = 'User deleted successfully';
             $this->redirect('/users');
 
@@ -457,6 +469,7 @@ class UserController extends Controller
         try {
             $newStatus = $user['is_active'] ? 0 : 1;
             $this->userModel->update($userId, ['is_active' => $newStatus]);
+            AuditLog::record('user.status_changed', ($newStatus ? 'Activated' : 'Deactivated') . " user \"{$user['username']}\"", ['entity_type' => 'user', 'entity_id' => (int)$userId]);
 
             $_SESSION['success'] = 'User status updated successfully';
             $this->redirect('/users');
@@ -509,6 +522,9 @@ class UserController extends Controller
         }
 
         $message = $action === 'activate' ? "Activated $updatedCount user(s)" : "Deactivated $updatedCount user(s)";
+        if ($updatedCount > 0) {
+            AuditLog::record('user.status_changed', $message, ['changes' => ['user_ids' => array_values($userIds)]]);
+        }
         if ($skippedSelf) {
             $message .= ' (skipped your own account)';
         }
@@ -566,6 +582,9 @@ class UserController extends Controller
         }
 
         $message = "Successfully deleted $deletedCount user(s)";
+        if ($deletedCount > 0) {
+            AuditLog::record('user.deleted', "Deleted $deletedCount user(s)", ['changes' => ['user_ids' => array_values($userIds)]]);
+        }
         if ($skippedSelf) {
             $message .= ' (skipped your own account)';
         }

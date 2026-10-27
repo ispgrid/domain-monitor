@@ -100,6 +100,9 @@ class AuthController extends Controller
                 'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
                 'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
             ]);
+            \App\Models\AuditLog::record('auth.login_failed', 'Sign-in failed: unknown user "' . mb_substr($username, 0, 100) . '"', [
+                'user_id' => null,
+            ]);
             $_SESSION['error'] = 'Invalid username or password';
             $this->redirect('/login');
             return;
@@ -123,6 +126,10 @@ class AuthController extends Controller
             } catch (\Exception $e) {
                 // Don't block response if notification fails
             }
+            \App\Models\AuditLog::record('auth.login_failed', 'Sign-in failed: wrong password', [
+                'user_id' => $user['id'],
+                'username' => $user['username'],
+            ]);
 
             $_SESSION['error'] = 'Invalid username or password';
             $this->redirect('/login');
@@ -209,6 +216,7 @@ class AuthController extends Controller
         } catch (\Exception $e) {
             // Don't block login if notification fails
         }
+        \App\Models\AuditLog::record('auth.login', 'Signed in with password');
 
         // Set success message for login
         $_SESSION['success'] = 'Login successful! Welcome back, ' . htmlspecialchars($user['full_name']) . '.';
@@ -798,6 +806,7 @@ class AuthController extends Controller
                     } catch (\Exception $e) {
                         // Don't block login if notification fails
                     }
+                    \App\Models\AuditLog::record('auth.login', 'Signed in with a remember-me cookie');
 
                     return true;
                 }
@@ -865,6 +874,10 @@ class AuthController extends Controller
      */
     public function logout()
     {
+        if (\Core\Auth::check()) {
+            \App\Models\AuditLog::record('auth.logout', 'Signed out');
+        }
+
         // Clear remember me token if exists
         if (isset($_COOKIE['remember_token'])) {
             $token = $_COOKIE['remember_token'];

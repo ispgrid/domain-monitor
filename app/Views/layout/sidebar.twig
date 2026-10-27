@@ -84,10 +84,14 @@
                         <i class="fas fa-users text-sm mr-3 w-4 {{ is_active_prefix('/users') ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-slate-500 group-hover:text-blue-500 dark:group-hover:text-blue-400' }}"></i>
                         <span class="text-sm">Users</span>
                     </a>
-                    <a href="/errors" class="sidebar-link group flex items-center px-3 py-2 rounded-lg transition-all duration-200
-                        {{ is_active_prefix('/errors') ? 'bg-blue-50 dark:bg-slate-800 text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-white' }}">
-                        <i class="fas fa-bug text-sm mr-3 w-4 {{ is_active_prefix('/errors') ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-slate-500 group-hover:text-blue-500 dark:group-hover:text-blue-400' }}"></i>
-                        <span class="text-sm">Error Logs</span>
+                    {% set logsActive = is_active_prefix('/logs') or is_active_prefix('/errors') %}
+                    <a href="/logs" class="sidebar-link group flex items-center px-3 py-2 rounded-lg transition-all duration-200
+                        {{ logsActive ? 'bg-blue-50 dark:bg-slate-800 text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-white' }}">
+                        <i class="fas fa-list-alt text-sm mr-3 w-4 {{ logsActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-slate-500 group-hover:text-blue-500 dark:group-hover:text-blue-400' }}"></i>
+                        <span class="text-sm">Logs</span>
+                        {% if logsStatus.count|default(0) > 0 %}
+                        <span class="ml-auto text-xs font-semibold px-1.5 py-0.5 rounded {{ logsStatus.cron_problems is not empty ? 'bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400' : 'bg-orange-100 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400' }}" title="{{ logsStatus.cron_problems is not empty ? 'Cron job problem' : 'Unresolved errors' }}">{{ logsStatus.count > 99 ? '99+' : logsStatus.count }}</span>
+                        {% endif %}
                     </a>
                 </div>
             </div>

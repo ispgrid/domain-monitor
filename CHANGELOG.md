@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-27
+
+### Added
+- **Logs** - "Error Logs" in the menu is now **Logs** (admins only), with tabs for everything the app records:
+  - **Overview** - When each cron job last ran and whether it is on time, the last update, and errors, failed alerts and failed sign-ins in the last 24 hours
+  - **Cron Runs** - Every run of the domain, SSL and DNS checks: start time, duration, result, how much was checked, alerts sent, errors and the full output. **Run now** starts a job from the browser and shows its output live
+  - **Updates** - Every update, rollback and database update: versions, who ran it, result, files updated, whether Composer ran, backup files, the commands run and the updater log lines
+  - **Commands** - Shell commands the app ran (composer, mysqldump, mysql, Run now) with exit code, duration and output
+  - **Notifications** - Every alert sent to email, Telegram, Slack and the other channels, with failed ones and their errors
+  - **Activity** - Who did what: sign-ins and failed sign-ins, settings changes (old → new), domains, users, notification groups, 2FA and passkeys, updates
+  - **Errors** - The existing error log
+  - **Files** - Browse, search, filter by level, download and delete the files in `logs/`
+- **Cron Alerts** - Admins get a notification and a banner when a cron job has not run for twice its interval or its last two runs failed. Turn it off in Settings → Maintenance
+- **Log Retention** - Settings → Maintenance → "Keep logs for" (default 30 days, or forever). Older logs are deleted once a day by the domain check cron; update history is kept. Logs → Overview → "Clean up now" runs it at once
+
+### Changed
+- `logs/cron.log`, `logs/ssl_cron.log` and `logs/dns_cron.log` start a new file each day; earlier days are kept as e.g. `cron.2026-10-26.log`
+- Passwords, tokens and webhook secrets are hidden (`***`) in log files viewed or downloaded in Logs, and in recorded commands and cron output
+- Rolling back an update keeps the log entries written since the backup was made
+
 ## [1.3.0] - 2026-10-26
 
 ### Added

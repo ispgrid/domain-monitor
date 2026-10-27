@@ -135,6 +135,7 @@ class LayoutHelper
             'system_welcome' => 'hand-sparkles',
             'system_upgrade' => 'arrow-up',
             'update_available' => 'cloud-download-alt',
+            'cron_problem' => 'clock',
             default => 'bell'
         };
     }
@@ -160,6 +161,7 @@ class LayoutHelper
             'system_welcome' => 'purple',
             'system_upgrade' => 'indigo',
             'update_available' => 'blue',
+            'cron_problem' => 'red',
             default => 'gray'
         };
     }
@@ -187,6 +189,40 @@ class LayoutHelper
                 'app_version' => $settingModel->getAppVersion()
             ];
         }
+    }
+
+    /**
+     * Logs badge for the sidebar (admin only): unresolved errors and late or failing cron jobs.
+     * Also sends the cron alerts when they are due. Cached in the session for a minute.
+     * Returns ['count' => int, 'cron_problems' => [['label', 'state', 'message'], ...]].
+     */
+    public static function getLogsStatus(): array
+    {
+        $cached = $_SESSION['logs_status'] ?? null;
+        if (is_array($cached) && ($cached['at'] ?? 0) > time() - 60) {
+            return $cached['data'];
+        }
+
+        $data = ['count' => 0, 'cron_problems' => []];
+        try {
+            $monitor = new \App\Services\CronMonitor();
+            $monitor->checkIfDue();
+            foreach ($monitor->getProblems() as $problem) {
+                $data['cron_problems'][] = [
+                    'label' => $problem['label'],
+                    'state' => $problem['state'],
+                    'message' => $problem['message'],
+                ];
+            }
+
+            $errorStats = (new \App\Models\ErrorLog())->getAdminStats();
+            $data['count'] = (int)($errorStats['unresolved'] ?? 0) + count($data['cron_problems']);
+        } catch (\Throwable $e) {
+            // Tables may not exist yet
+        }
+
+        $_SESSION['logs_status'] = ['at' => time(), 'data' => $data];
+        return $data;
     }
 
     /**

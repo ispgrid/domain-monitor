@@ -1,0 +1,67 @@
+{% extends 'layout/base.twig' %}
+{% import 'logs/_macros.twig' as m %}
+
+{% set title = 'Commands - Logs' %}
+{% set pageTitle = 'Logs' %}
+
+{% block content %}
+{% include 'logs/_tabs.twig' %}
+
+{% if not tablesReady %}{{ m.not_ready() }}{% endif %}
+
+<form method="GET" action="/logs/commands" class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 mb-4 flex flex-wrap items-end gap-3">
+    <div>
+        <label class="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Source</label>
+        <select name="source" class="{{ m.select_class() }}">
+            <option value="">All sources</option>
+            {% for source in sources %}<option value="{{ source }}" {{ filters.source == source ? 'selected' : '' }}>{{ source|capitalize }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Result</label>
+        <select name="result" class="{{ m.select_class() }}">
+            <option value="">Any result</option>
+            <option value="ok" {{ filters.result == 'ok' ? 'selected' : '' }}>Exit code 0</option>
+            <option value="failed" {{ filters.result == 'failed' ? 'selected' : '' }}>Failed</option>
+        </select>
+    </div>
+    <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark text-sm font-medium"><i class="fas fa-filter mr-2"></i>Apply</button>
+    <a href="/logs/commands" class="px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium">Clear</a>
+</form>
+
+<div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+    {% if commands is not empty %}
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700 text-sm">
+            <thead class="bg-gray-50 dark:bg-slate-900">
+                <tr>
+                    {% for col in ['Command', 'Source', 'Started', 'Duration', 'Exit code', 'By'] %}
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">{{ col }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-slate-700">
+                {% for c in commands %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer" onclick="window.location='/logs/commands/{{ c.id }}'">
+                    <td class="px-4 py-3">
+                        <a href="/logs/commands/{{ c.id }}" class="font-medium text-gray-900 dark:text-white hover:text-primary">{{ c.label }}</a>
+                        <p class="text-xs font-mono text-gray-500 dark:text-slate-400 truncate max-w-md" title="{{ c.command }}">{{ c.command }}</p>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-slate-400">{{ c.source|capitalize }}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-slate-400">{{ c.started_at|date('M d, H:i:s') }}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-slate-400">{{ m.duration(c.duration_ms) }}</td>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        <span class="px-2 py-0.5 rounded text-xs font-semibold {{ c.exit_code == 0 and c.exit_code is not null ? 'bg-green-100 dark:bg-green-500/10 text-green-800 dark:text-green-400' : 'bg-red-100 dark:bg-red-500/10 text-red-800 dark:text-red-400' }}">{{ c.exit_code ?? '?' }}</span>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-slate-400">{{ c.username ?: (c.user_id ? 'deleted user' : 'System') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {{ m.empty_state('terminal', 'No commands recorded', 'Commands the app runs (composer, mysqldump, mysql, Run now) appear here.') }}
+    {% endif %}
+</div>
+{{ m.pagination(pagination, filters) }}
+{% endblock %}

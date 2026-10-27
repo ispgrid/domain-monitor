@@ -731,6 +731,28 @@ class NotificationService
         }
     }
 
+    /**
+     * Notify all admins that a cron job is late or keeps failing (in-app)
+     */
+    public function notifyAdminsCronProblem(string $jobLabel, string $state, string $detail): void
+    {
+        try {
+            $userModel = new \App\Models\User();
+            $notificationModel = new \App\Models\Notification();
+            $title = $state === 'late' ? "Cron job late: {$jobLabel}" : "Cron job failing: {$jobLabel}";
+            $message = "{$detail}. Check the server's crontab and Logs → Cron Runs.";
+
+            foreach ($userModel->getAllAdmins() as $admin) {
+                $notificationModel->createNotification($admin['id'], 'cron_problem', $title, $message, null);
+            }
+        } catch (\Exception $e) {
+            $logger = new \App\Services\Logger();
+            $logger->error("Failed to notify admins about a cron problem", [
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
     // ========================================
     // DNS MONITORING NOTIFICATIONS
     // ========================================

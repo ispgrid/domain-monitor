@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use Core\Controller;
+use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Models\NotificationGroup;
 use App\Models\SslCertificate;
@@ -397,6 +398,7 @@ class DomainController extends Controller
         ]);
 
         $msg = "{$added} domain(s) imported successfully";
+        AuditLog::record('domain.imported', "Imported {$added} domain(s) from a file");
         if ($skipped > 0) $msg .= ", {$skipped} skipped (already exist)";
         if ($invalidImported > 0) $msg .= ", {$invalidImported} rejected (not root domains)";
         if (!empty($errors)) $msg .= ", " . count($errors) . " failed";
@@ -543,6 +545,8 @@ class DomainController extends Controller
             'dns_monitoring_enabled' => $dnsMonitoringEnabled,
             'ssl_monitoring_enabled' => $sslMonitoringEnabled
         ]);
+
+        AuditLog::record('domain.created', "Added domain $domainName", ['entity_type' => 'domain']);
 
         if ($status !== 'available') {
             $_SESSION['success'] = "Domain '$domainName' added successfully";
@@ -749,6 +753,8 @@ class DomainController extends Controller
             $tagModel = new \App\Models\Tag();
             $tagModel->removeAllFromDomain($id);
         }
+
+        AuditLog::record('domain.updated', "Edited domain {$domain['domain_name']}", ['entity_type' => 'domain', 'entity_id' => $id]);
 
         $_SESSION['success'] = 'Domain updated successfully';
         $this->redirect('/domains/' . $id);
@@ -1233,6 +1239,7 @@ class DomainController extends Controller
         }
 
         $this->domainModel->delete($id);
+        AuditLog::record('domain.deleted', "Deleted domain {$domain['domain_name']}", ['entity_type' => 'domain', 'entity_id' => (int)$id]);
         $_SESSION['success'] = 'Domain deleted successfully';
         $this->redirect('/domains');
     }
@@ -1505,6 +1512,7 @@ class DomainController extends Controller
             $_SESSION['warning'] = "Note: $availableCount domain(s) appear to be AVAILABLE (not registered).";
         }
         
+        AuditLog::record('domain.created', 'Bulk add: ' . $message);
         $_SESSION['success'] = $message;
         $this->redirect('/domains');
     }
@@ -1648,6 +1656,9 @@ class DomainController extends Controller
             }
         }
 
+        if ($deleted > 0) {
+            AuditLog::record('domain.deleted', "Deleted $deleted domain(s)");
+        }
         $_SESSION['success'] = "Deleted $deleted domain(s)";
         $this->redirect('/domains');
     }
@@ -1757,6 +1768,7 @@ class DomainController extends Controller
         }
 
         $status = $isActive ? 'enabled' : 'disabled';
+        AuditLog::record('domain.updated', "Monitoring $status for $updated domain(s)");
         $_SESSION['success'] = "Monitoring $status for $updated domain(s)";
         $this->redirect('/domains');
     }
@@ -2093,6 +2105,7 @@ class DomainController extends Controller
                 'admin_user_id' => \Core\Auth::id(),
             ]);
             
+            AuditLog::record('domain.transferred', "Transferred domain {$domain['domain_name']} to {$targetUser['username']}", ['entity_type' => 'domain', 'entity_id' => (int)$domain['id']]);
             $_SESSION['success'] = "Domain '{$domain['domain_name']}' transferred to {$targetUser['username']}";
         } catch (\Exception $e) {
             $logger->error('Domain transfer failed', [
@@ -2191,6 +2204,7 @@ class DomainController extends Controller
             'admin_user_id' => \Core\Auth::id(),
         ]);
 
+        AuditLog::record('domain.transferred', "Transferred $transferred domain(s) to {$targetUser['username']}");
         $_SESSION['success'] = "$transferred domain(s) transferred to {$targetUser['username']}";
         $this->redirect('/domains');
     }
@@ -2253,15 +2267,13 @@ class DomainController extends Controller
         $mode = $_POST['mode'] ?? 'quick';
 
         if ($mode === 'deep') {
-            $domainName = escapeshellarg($domain['domain_name']);
             $scriptPath = realpath(__DIR__ . '/../../cron/discover_dns.php');
-
-            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-                $cmd = "start /b php " . escapeshellarg($scriptPath) . " --domain $domainName";
-            } else {
-                $cmd = "nohup php " . escapeshellarg($scriptPath) . " --domain $domainName > /dev/null 2>&1 &";
-            }
-            exec($cmd);
+            \App\Services\CommandRunner::spawnPhp(
+                $scriptPath,
+                ['--domain', $domain['domain_name']],
+                'Deep DNS scan: ' . $domain['domain_name'],
+                'dns'
+            );
 
             $logger->info('Deep DNS scan started (background)', [
                 'domain_name' => $domain['domain_name'],

@@ -89,10 +89,14 @@ class TwigService
                 $updateBadge = Auth::isAdmin()
                     ? \App\Helpers\LayoutHelper::getUpdateBadgeInfo()
                     : ['show' => false, 'available' => false, 'label' => ''];
+                $logsStatus = Auth::isAdmin()
+                    ? \App\Helpers\LayoutHelper::getLogsStatus()
+                    : ['count' => 0, 'cron_problems' => []];
             } else {
                 $recentNotifications = [];
                 $unreadNotifications = 0;
                 $updateBadge = ['show' => false, 'available' => false, 'label' => ''];
+                $logsStatus = ['count' => 0, 'cron_problems' => []];
             }
 
             $domainStats = \App\Helpers\LayoutHelper::getDomainStats();
@@ -121,6 +125,7 @@ class TwigService
                 'recentNotifications' => $recentNotifications,
                 'unreadNotifications' => $unreadNotifications,
                 'updateBadge'         => $updateBadge,
+                'logsStatus'          => $logsStatus,
                 'domainStats'         => $domainStats,
                 'appName'             => $appSettings['app_name'],
                 'appTimezone'         => $appSettings['app_timezone'],
@@ -137,6 +142,7 @@ class TwigService
                 'recentNotifications' => [],
                 'unreadNotifications' => 0,
                 'updateBadge'         => ['show' => false, 'available' => false, 'label' => ''],
+                'logsStatus'          => ['count' => 0, 'cron_problems' => []],
                 'domainStats'         => [],
                 'appName'             => 'Domain Monitor',
                 'appTimezone'         => 'UTC',

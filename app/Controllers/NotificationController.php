@@ -232,6 +232,7 @@ class NotificationController extends Controller
             'system_welcome' => 'hand-sparkles',
             'system_upgrade' => 'arrow-up',
             'update_available' => 'cloud-download-alt',
+            'cron_problem' => 'clock',
             default => 'bell'
         };
     }
@@ -257,6 +258,7 @@ class NotificationController extends Controller
             'system_welcome' => 'purple',
             'system_upgrade' => 'indigo',
             'update_available' => 'blue',
+            'cron_problem' => 'red',
             default => 'gray'
         };
     }

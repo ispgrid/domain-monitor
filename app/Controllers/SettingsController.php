@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use Core\Controller;
 use Core\Auth;
+use App\Models\AuditLog;
 use App\Models\Setting;
 use App\Helpers\EmailHelper;
 use App\Services\Logger;
@@ -12,12 +13,25 @@ class SettingsController extends Controller
 {
     private Setting $settingModel;
     private Logger $logger;
+    private array $settingsBefore = [];
 
     public function __construct()
     {
         Auth::requireAdmin();
         $this->settingModel = new Setting();
         $this->logger = new Logger('settings');
+        $this->settingsBefore = $this->settingModel->getAllAsKeyValue();
+    }
+
+    /**
+     * Record changed settings in the activity log (secret values are hidden)
+     */
+    private function auditSettings(string $section): void
+    {
+        $changes = AuditLog::diff($this->settingsBefore, $this->settingModel->getAllAsKeyValue());
+        if ($changes) {
+            AuditLog::record('settings.updated', "Changed $section settings", ['changes' => $changes]);
+        }
     }
 
     public function index()
@@ -254,6 +268,7 @@ class SettingsController extends Controller
             $this->settingModel->setValue('ssl_notification_days', implode(',', $sslDays));
             $this->settingModel->updateNotificationStatusTriggers($statusTriggers);
 
+            $this->auditSettings('monitoring');
             $_SESSION['success'] = 'Settings updated successfully';
             $this->redirect('/settings#monitoring');
 
@@ -301,6 +316,31 @@ class SettingsController extends Controller
             $_SESSION['error'] = 'Failed to clear logs: ' . $e->getMessage();
             $this->redirect('/settings#maintenance');
         }
+    }
+
+    /**
+     * Log retention and cron alert settings (Maintenance tab)
+     */
+    public function updateLogs()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/settings#maintenance');
+            return;
+        }
+
+        $this->verifyCsrf('/settings#maintenance');
+
+        $days = (int)($_POST['log_retention_days'] ?? 30);
+        if (!in_array($days, [0, 7, 14, 30, 60, 90, 180, 365], true)) {
+            $days = 30;
+        }
+
+        $this->settingModel->setValue('log_retention_days', (string)$days);
+        $this->settingModel->setValue('cron_alerts_enabled', isset($_POST['cron_alerts_enabled']) ? '1' : '0');
+        $this->auditSettings('log');
+
+        $_SESSION['success'] = $days > 0 ? "Logs are now kept for $days days" : 'Logs are now kept forever';
+        $this->redirect('/settings#maintenance');
     }
 
     public function updateApp()
@@ -360,6 +400,7 @@ class SettingsController extends Controller
             $this->settingModel->setValue('domain_view_template', $viewTemplate);
             $this->settingModel->setValue('show_billing_tab', isset($_POST['show_billing_tab']) ? '1' : '0');
             
+            $this->auditSettings('application');
             $_SESSION['success'] = 'Application settings updated successfully';
             $this->redirect('/settings#app');
 
@@ -435,6 +476,7 @@ class SettingsController extends Controller
             }
 
             $this->settingModel->updateEmailSettings($emailSettings);
+            $this->auditSettings('email');
             $_SESSION['success'] = 'Email settings updated successfully';
             $this->redirect('/settings#email');
 
@@ -508,6 +550,7 @@ class SettingsController extends Controller
             // Update CAPTCHA settings
             $this->settingModel->updateCaptchaSettings($captchaSettings);
 
+            $this->auditSettings('CAPTCHA');
             $_SESSION['success'] = 'CAPTCHA settings updated successfully';
             $this->redirect('/settings#security');
 
@@ -608,6 +651,7 @@ class SettingsController extends Controller
 
             $this->settingModel->updateTwoFactorSettings($twoFactorSettings);
             
+            $this->auditSettings('two-factor and passkey');
             $_SESSION['success'] = 'Two-factor and passkey settings updated successfully';
             $this->redirect('/settings#security');
 
@@ -667,6 +711,7 @@ class SettingsController extends Controller
                 $_SESSION['success'] = 'Switched to shared mode. All users can now see all domains and groups.';
             }
 
+            $this->auditSettings('user isolation');
             $this->redirect('/settings#isolation');
 
         } catch (\Exception $e) {

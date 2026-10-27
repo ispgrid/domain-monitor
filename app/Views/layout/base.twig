@@ -154,6 +154,19 @@
     {# Main Content Area #}
     <main class="md:ml-64 pt-16 min-h-screen bg-gray-50 dark:bg-gray-900">
         <div class="p-6">
+            {# Late or failing cron jobs (admins only) #}
+            {% if logsStatus.cron_problems is defined and logsStatus.cron_problems is not empty and not is_active_prefix('/logs') %}
+            <div class="mb-4 px-4 py-3 rounded-lg border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 flex items-start gap-3">
+                <i class="fas fa-clock text-red-600 dark:text-red-400 mt-0.5"></i>
+                <div class="flex-1 text-sm text-red-800 dark:text-red-300">
+                    {% for problem in logsStatus.cron_problems %}
+                    <p><span class="font-semibold">{{ problem.label }}:</span> {{ problem.message }}.</p>
+                    {% endfor %}
+                </div>
+                <a href="/logs/cron" class="text-sm font-medium text-red-700 dark:text-red-300 hover:underline whitespace-nowrap">View cron runs</a>
+            </div>
+            {% endif %}
+
             {# Flash Messages #}
             {% include 'layout/messages.twig' %}
             

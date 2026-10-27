@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use Core\Controller;
+use App\Models\AuditLog;
 use App\Models\NotificationGroup;
 use App\Models\NotificationChannel;
 
@@ -474,6 +475,7 @@ class NotificationGroupController extends Controller
                 'isolation_mode' => $isolationMode
             ]);
 
+            AuditLog::record('group.created', "Created notification group \"$name\"", ['entity_type' => 'group']);
             $_SESSION['success'] = "Group '$name' created successfully";
             $this->redirect("/groups/$id/edit");
         } catch (\Exception $e) {
@@ -560,6 +562,7 @@ class NotificationGroupController extends Controller
                 'user_id' => \Core\Auth::id()
             ]);
 
+            AuditLog::record('group.updated', "Edited notification group \"{$group['name']}\"", ['entity_type' => 'group', 'entity_id' => (int)$id]);
             $_SESSION['success'] = 'Group updated successfully';
             $this->redirect("/groups/$id/edit");
         } catch (\Exception $e) {
@@ -593,6 +596,7 @@ class NotificationGroupController extends Controller
             ]);
 
             $this->groupModel->deleteWithRelations($id);
+            AuditLog::record('group.deleted', "Deleted notification group \"{$group['name']}\"", ['entity_type' => 'group', 'entity_id' => (int)$id]);
             $_SESSION['success'] = 'Group deleted successfully';
             $this->redirect('/groups');
         } catch (\Exception $e) {
@@ -662,6 +666,7 @@ class NotificationGroupController extends Controller
 
         try {
             $this->channelModel->createChannel($groupId, $channelType, $config);
+            AuditLog::record('group.channel_added', "Added a $channelType channel to \"{$group['name']}\"", ['entity_type' => 'group', 'entity_id' => (int)$groupId]);
             $_SESSION['success'] = 'Channel added successfully';
             $this->redirect("/groups/$groupId/edit");
         } catch (\Exception $e) {
@@ -696,6 +701,7 @@ class NotificationGroupController extends Controller
 
         try {
             $this->channelModel->delete($id);
+            AuditLog::record('group.channel_deleted', "Removed a {$channel['channel_type']} channel from \"{$group['name']}\"", ['entity_type' => 'group', 'entity_id' => (int)$groupId]);
             $_SESSION['success'] = 'Channel deleted successfully';
             $this->redirect("/groups/$groupId/edit");
         } catch (\Exception $e) {
@@ -730,6 +736,7 @@ class NotificationGroupController extends Controller
 
         try {
             $this->channelModel->toggleActive($id);
+            AuditLog::record('group.channel_toggled', ($channel['is_active'] ? 'Turned off' : 'Turned on') . " a {$channel['channel_type']} channel in \"{$group['name']}\"", ['entity_type' => 'group', 'entity_id' => (int)$groupId]);
             $_SESSION['success'] = 'Channel status updated';
             $this->redirect("/groups/$groupId/edit");
         } catch (\Exception $e) {
@@ -1028,6 +1035,7 @@ class NotificationGroupController extends Controller
 
         if ($deletedCount > 0) {
             if (empty($errors)) {
+                AuditLog::record('group.deleted', "Deleted $deletedCount notification group(s)");
                 $_SESSION['success'] = "Successfully deleted $deletedCount notification group(s)";
             } else {
                 $_SESSION['warning'] = "Deleted $deletedCount group(s), but " . count($errors) . " failed. Check error logs for details.";

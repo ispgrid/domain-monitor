@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Setting;
+use App\Models\UpdateHistory;
 use GuzzleHttp\Client;
 
 class UpdateService
@@ -158,9 +159,36 @@ class UpdateService
     }
 
     /**
-     * Download and apply an update (release or hotfix)
+     * Download and apply an update (release or hotfix), recorded in Logs → Updates
      */
     public function performUpdate(string $type = 'release'): array
+    {
+        $start = microtime(true);
+        $historyId = UpdateHistory::begin('update', [
+            'update_type' => $type,
+            'from_version' => $this->settingModel->getAppVersion(),
+            'log_file' => basename($this->logger->getLogFile()),
+        ]);
+
+        $result = $this->applyUpdate($type);
+
+        UpdateHistory::finish($historyId, $result['success'] ? 'success' : 'failed', [
+            'to_version' => $result['to_version'] ?? null,
+            'files_updated' => $result['files_updated'],
+            'composer_status' => $result['composer_status'] ?? null,
+            'db_backup_path' => $result['db_backup_path'] ?? null,
+            'file_backup_path' => $result['backup_path'],
+            'error_message' => $result['errors'] ? implode('; ', $result['errors']) : null,
+            'details' => array_filter([
+                'db_backup_warning' => $result['db_backup_warning'] ?? null,
+                'composer_manual_required' => !empty($result['composer_manual_required']),
+            ]),
+        ], $start);
+
+        return $result;
+    }
+
+    private function applyUpdate(string $type): array
     {
         $this->logger->startOperation('Application Update');
 
@@ -241,12 +269,17 @@ class UpdateService
 
             // Step 8: Run composer install if dependencies changed (skip if exec disabled, e.g. cPanel)
             $result['composer_manual_required'] = false;
+            $result['composer_status'] = 'not_needed';
             if ($composerChanged) {
                 if (!$this->canRunShellCommands()) {
                     $this->logger->warning('Composer dependencies changed but shell commands are disabled (e.g. exec in disable_functions). Run composer install manually.');
                     $result['composer_manual_required'] = true;
+                    $result['composer_status'] = 'manual';
                 } elseif (!$this->runComposerInstall()) {
                     $result['composer_manual_required'] = true;
+                    $result['composer_status'] = 'failed';
+                } else {
+                    $result['composer_status'] = 'ran';
                 }
                 if ($result['composer_manual_required']) {
                     $this->logger->info('Composer manual action required. If dependencies changed, run: composer install --no-dev (e.g. via SSH or cPanel Terminal).');
@@ -307,16 +340,29 @@ class UpdateService
             ];
         }
 
+        $start = microtime(true);
+        $dbBackupPath = $this->settingModel->getValue('update_db_backup_path', null);
+        $historyId = UpdateHistory::begin('rollback', [
+            'from_version' => $this->settingModel->getAppVersion(),
+            'to_version' => $dbBackupPath && preg_match('/db_backup_v([^_]+)_/', basename($dbBackupPath), $m) ? $m[1] : null,
+            'db_backup_path' => $dbBackupPath ?: null,
+            'file_backup_path' => $backupPath,
+            'log_file' => basename($this->logger->getLogFile()),
+        ]);
+
         try {
             $this->logger->startOperation('Rollback');
 
             // Restore database first (if backup exists)
-            $dbBackupPath = $this->settingModel->getValue('update_db_backup_path', null);
             if ($dbBackupPath && file_exists($dbBackupPath)) {
                 $this->logger->info('Restoring database from backup', ['path' => $dbBackupPath]);
+                // The backup predates this rollback, so keep the log rows written since then
+                $logRows = $this->snapshotLogRows((int)filemtime($dbBackupPath));
                 $dbRestored = $this->restoreDatabaseBackup($dbBackupPath);
                 if (!$dbRestored) {
                     $this->logger->warning('Database restore failed or skipped. SQL file is still available for manual import.', ['path' => $dbBackupPath]);
+                } else {
+                    $this->restoreLogRows($logRows);
                 }
             } else {
                 $this->logger->info('No database backup found, restoring files only');
@@ -327,9 +373,14 @@ class UpdateService
             $this->clearTemplateCache();
             $this->logger->endOperation('Rollback', ['success' => true]);
 
+            UpdateHistory::finish($historyId, 'success', [
+                'details' => ['db_restored' => $dbRestored ?? null],
+            ], $start);
+
             return ['success' => true, 'db_restored' => isset($dbRestored) ? $dbRestored : null];
         } catch (\Exception $e) {
             $this->logger->error('Rollback failed', ['error' => $e->getMessage()]);
+            UpdateHistory::finish($historyId, 'failed', ['error_message' => $e->getMessage()], $start);
             return [
                 'success' => false,
                 'error' => 'Rollback failed: ' . $e->getMessage(),
@@ -865,7 +916,7 @@ class UpdateService
                 ]);
                 return false;
             }
-            exec($command, $output, $returnCode);
+            CommandRunner::exec($command, $output, $returnCode, 'composer install', 'updater');
         } finally {
             @chdir($oldCwd);
             if ($composerHome !== null) {
@@ -1007,7 +1058,7 @@ class UpdateService
                     escapeshellarg($database)
                 );
                 $output = [];
-                exec($cmd, $output, $exitCode);
+                CommandRunner::exec($cmd, $output, $exitCode, 'Database backup (mysqldump)', 'updater', [$password]);
                 @unlink($optionsFile);
                 if ($exitCode === 0 && file_exists($sqlFile) && filesize($sqlFile) > 0) {
                     return ['success' => true, 'path' => $sqlFile, 'method' => 'mysqldump', 'reason' => ''];
@@ -1080,6 +1131,71 @@ class UpdateService
     }
 
     /**
+     * Log rows written since $since (a timestamp), so restoring an older database backup
+     * does not erase them. Update history is kept whole.
+     */
+    private function snapshotLogRows(int $since): array
+    {
+        $tables = ['update_history' => null, 'cron_runs' => 'created_at', 'command_runs' => 'created_at', 'audit_log' => 'created_at'];
+        $pdo = \Core\Database::getConnection();
+        $sinceStr = date('Y-m-d H:i:s', $since - 60);
+        $rows = [];
+
+        foreach ($tables as $table => $column) {
+            try {
+                $stmt = $pdo->prepare($column ? "SELECT * FROM `{$table}` WHERE `{$column}` >= ?" : "SELECT * FROM `{$table}`");
+                $stmt->execute($column ? [$sinceStr] : []);
+                $rows[$table] = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            } catch (\Throwable $e) {
+                // Table does not exist on this version
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Put back rows saved by snapshotLogRows() after a database restore.
+     * A row that is in the backup too (same id and created_at) is updated to its newer state;
+     * a row whose id is now taken by another row (written since the restore, e.g. the restore
+     * command itself) is added with a new id.
+     */
+    private function restoreLogRows(array $rows): void
+    {
+        $pdo = \Core\Database::getConnection();
+
+        foreach ($rows as $table => $tableRows) {
+            try {
+                $find = $pdo->prepare("SELECT created_at FROM `{$table}` WHERE id = ?");
+                foreach ($tableRows as $row) {
+                    $find->execute([$row['id']]);
+                    $existing = $find->fetchColumn();
+
+                    if ($existing === $row['created_at']) {
+                        $id = $row['id'];
+                        unset($row['id']);
+                        $set = implode(', ', array_map(fn($c) => "`{$c}` = ?", array_keys($row)));
+                        $pdo->prepare("UPDATE `{$table}` SET {$set} WHERE id = ?")->execute([...array_values($row), $id]);
+                        continue;
+                    }
+
+                    if ($existing !== false) {
+                        unset($row['id']);
+                    }
+                    $cols = array_keys($row);
+                    $pdo->prepare(
+                        "INSERT INTO `{$table}` (`" . implode('`, `', $cols) . "`) VALUES ("
+                        . implode(', ', array_fill(0, count($cols), '?')) . ")"
+                    )->execute(array_values($row));
+                }
+            } catch (\Throwable $e) {
+                // The restored (older) schema has no such table or columns
+                $this->logger->info('Could not keep log rows after restore', ['table' => $table, 'error' => $e->getMessage()]);
+            }
+        }
+    }
+
+    /**
      * Restore a database backup from a .sql file (used during rollback)
      */
     private function restoreDatabaseBackup(string $sqlFile): bool
@@ -1106,7 +1222,7 @@ class UpdateService
                         escapeshellarg($cleanFile)
                     );
                     $output = [];
-                    exec($cmd, $output, $exitCode);
+                    CommandRunner::exec($cmd, $output, $exitCode, 'Database restore (mysql)', 'updater', [$_ENV['DB_PASSWORD'] ?? '']);
                     @unlink($optionsFile);
                     if ($exitCode === 0) {
                         $this->logger->info('Database restored via mysql CLI', ['path' => $sqlFile]);

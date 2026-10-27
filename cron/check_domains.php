@@ -66,6 +66,7 @@ function logMessage(string $message): void {
 
 // Record start time
 $startTime = microtime(true);
+$cron->startRun('domains');
 
 logMessage("=== Starting domain check cron job ===");
 
@@ -888,7 +889,29 @@ try {
     logMessage("Update check error: " . $e->getMessage());
 }
 
+// Delete logs older than the retention setting (once a day)
+try {
+    $cleaned = (new \App\Services\LogRetention())->cleanupIfDue();
+    if ($cleaned) {
+        logMessage("Old logs cleaned up: " . http_build_query($cleaned, '', ', '));
+    }
+} catch (\Throwable $e) {
+    logMessage("Log cleanup error: " . $e->getMessage());
+}
+
 logMessage("==========================\n");
+
+$cron->finishRun($stats['checked'], $stats['notifications_sent'], $stats['errors'], [
+    'checked' => $stats['checked'],
+    'updated' => $stats['updated'],
+    'status_changes' => $stats['status_changes'],
+    'renewals' => $stats['renewals'],
+    'notifications_sent' => $stats['notifications_sent'],
+    'in_app_notifications' => $stats['in_app_notifications_created'],
+    'errors' => $stats['errors'],
+    'retried' => $stats['retried'],
+    'retry_succeeded' => $stats['retry_succeeded'],
+]);
 
 exit(0);
 

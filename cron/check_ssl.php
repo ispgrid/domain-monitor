@@ -61,6 +61,7 @@ try {
 $logFile = __DIR__ . '/../logs/ssl_cron.log';
 $cron = new CronHelper($logFile);
 $startTime = microtime(true);
+$cron->startRun('ssl');
 
 logMessage("=== Starting SSL check cron job ===");
 logMessage("SSL alert days: " . implode(', ', $sslNotificationDays));
@@ -254,6 +255,18 @@ logMessage("In-app notifications:   {$stats['in_app_notifications']}");
 logMessage("Errors:                 {$stats['errors']}");
 logMessage("Execution time:         " . CronHelper::formatElapsedTime(microtime(true) - $startTime));
 logMessage("============================\n");
+
+$cron->finishRun($stats['checked_hosts'], $stats['notifications_sent'], $stats['errors'], [
+    'domains_checked' => $stats['checked_domains'],
+    'endpoints_checked' => $stats['checked_hosts'],
+    'endpoints_skipped' => $stats['skipped_unresolved'],
+    'status_changes' => $stats['status_changes'],
+    'reminders' => $stats['reminders'],
+    'issues' => $stats['issues_detected'],
+    'notifications_sent' => $stats['notifications_sent'],
+    'in_app_notifications' => $stats['in_app_notifications'],
+    'errors' => $stats['errors'],
+]);
 
 exit(0);
 

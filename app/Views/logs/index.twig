@@ -1,0 +1,152 @@
+{% extends 'layout/base.twig' %}
+{% import 'logs/_macros.twig' as m %}
+
+{% set title = 'Logs' %}
+{% set pageTitle = 'Logs' %}
+
+{% block content %}
+{% include 'logs/_tabs.twig' %}
+
+{% if not tablesReady %}{{ m.not_ready() }}{% endif %}
+
+{# Cron health #}
+<h2 class="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3">Cron jobs</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    {% for item in health %}
+    {% set bad = item.state in ['late', 'failing'] %}
+    <a href="/logs/cron?job={{ item.job }}" class="block bg-white dark:bg-slate-800 rounded-lg border {{ bad ? 'border-red-300 dark:border-red-500/40' : 'border-gray-200 dark:border-slate-700' }} p-5 hover:shadow-md transition-shadow">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-{{ item.icon }} text-gray-400 dark:text-slate-500"></i>
+                <span class="font-semibold text-gray-900 dark:text-white">{{ item.label }}</span>
+            </div>
+            {{ m.health_state(item.state) }}
+        </div>
+        <dl class="text-sm space-y-1">
+            <div class="flex justify-between gap-2">
+                <dt class="text-gray-500 dark:text-slate-400">Last run</dt>
+                <dd class="text-gray-900 dark:text-white text-right">{{ item.last_started_at ? item.last_started_at|date('M d, H:i') : 'Never' }}</dd>
+            </div>
+            <div class="flex justify-between gap-2">
+                <dt class="text-gray-500 dark:text-slate-400">Result</dt>
+                <dd class="text-right">{{ item.last_run ? m.run_status(item.last_run.effective_status) : '—' }}</dd>
+            </div>
+            <div class="flex justify-between gap-2">
+                <dt class="text-gray-500 dark:text-slate-400">Expected</dt>
+                <dd class="text-gray-900 dark:text-white">every {{ item.interval_hours }}h</dd>
+            </div>
+        </dl>
+        {% if item.message and item.state != 'running' %}
+        <p class="mt-3 text-xs {{ bad ? 'text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-slate-400' }}">{{ item.message }}</p>
+        {% endif %}
+    </a>
+    {% endfor %}
+</div>
+
+{# Other health numbers #}
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <a href="/logs/updates" class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 hover:shadow-md transition-shadow">
+        <p class="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">Last update</p>
+        {% if latestUpdate %}
+        <p class="text-base font-semibold text-gray-900 dark:text-white mt-1">{{ latestUpdate.action|capitalize }} {{ latestUpdate.to_version ? 'to ' ~ latestUpdate.to_version : '' }}</p>
+        <p class="text-xs mt-1 {{ latestUpdate.status == 'failed' ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-slate-400' }}">{{ latestUpdate.status|capitalize }} · {{ latestUpdate.started_at|date('M d, H:i') }}</p>
+        {% else %}
+        <p class="text-base font-semibold text-gray-900 dark:text-white mt-1">None recorded</p>
+        {% endif %}
+    </a>
+    <a href="/errors?resolved=0" class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 hover:shadow-md transition-shadow">
+        <p class="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">Errors (24h)</p>
+        <p class="text-2xl font-semibold mt-1 {{ errorStats.last_24h|default(0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white' }}">{{ errorStats.last_24h|default(0) }}</p>
+        <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">{{ errorStats.unresolved|default(0) }} unresolved</p>
+    </a>
+    <a href="/logs/notifications?status=failed" class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 hover:shadow-md transition-shadow">
+        <p class="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">Failed alerts (24h)</p>
+        <p class="text-2xl font-semibold mt-1 {{ failedNotifications > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white' }}">{{ failedNotifications }}</p>
+        <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Notifications that did not send</p>
+    </a>
+    <a href="/logs/activity?category=auth" class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 hover:shadow-md transition-shadow">
+        <p class="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">Failed sign-ins (24h)</p>
+        <p class="text-2xl font-semibold mt-1 {{ failedSignIns > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-900 dark:text-white' }}">{{ failedSignIns }}</p>
+        <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Wrong password or 2FA code</p>
+    </a>
+</div>
+
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+    {# Recent cron runs #}
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+        <div class="px-5 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-gray-900 dark:text-white">Recent cron runs</h2>
+            <a href="/logs/cron" class="text-sm text-primary hover:underline">All runs</a>
+        </div>
+        {% if recentRuns is not empty %}
+        <ul class="divide-y divide-gray-100 dark:divide-slate-700">
+            {% for run in recentRuns %}
+            <li>
+                <a href="/logs/cron/{{ run.id }}" class="flex items-center justify-between gap-3 px-5 py-2.5 hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                    <div class="min-w-0">
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ health[run.job].label|default(run.job) }}</p>
+                        <p class="text-xs text-gray-500 dark:text-slate-400">{{ (run.started_at ?: run.created_at)|date('M d, H:i') }} · {{ m.duration(run.duration_ms) }}{{ run.trigger_type == 'manual' ? ' · Run now by ' ~ (run.username ?: 'deleted user') : '' }}</p>
+                    </div>
+                    {{ m.run_status(run.effective_status) }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        {{ m.empty_state('clock', 'No cron runs yet', 'Runs appear here after the cron jobs run once on v1.4.0.') }}
+        {% endif %}
+    </div>
+
+    {# Recent activity #}
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+        <div class="px-5 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-gray-900 dark:text-white">Recent activity</h2>
+            <a href="/logs/activity" class="text-sm text-primary hover:underline">All activity</a>
+        </div>
+        {% if recentActivity is not empty %}
+        <ul class="divide-y divide-gray-100 dark:divide-slate-700">
+            {% for entry in recentActivity %}
+            <li class="px-5 py-2.5">
+                <p class="text-sm text-gray-900 dark:text-white">{{ entry.description }}</p>
+                <p class="text-xs text-gray-500 dark:text-slate-400">{{ entry.created_at|date('M d, H:i') }} · {{ entry.username ?: 'System' }}{{ entry.ip_address ? ' · ' ~ entry.ip_address : '' }}</p>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        {{ m.empty_state('user-clock', 'No activity yet', 'Sign-ins and changes appear here.') }}
+        {% endif %}
+    </div>
+</div>
+
+{# Retention #}
+<div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div class="text-sm text-gray-600 dark:text-slate-400">
+        <i class="fas fa-broom mr-2 text-gray-400"></i>
+        {% if retentionDays > 0 %}
+        Logs older than <span class="font-semibold text-gray-900 dark:text-white">{{ retentionDays }} days</span> are deleted each day by the domain check cron (update history is kept).
+        {% else %}
+        Logs are <span class="font-semibold text-gray-900 dark:text-white">kept forever</span>.
+        {% endif %}
+        Change this in <a href="/settings#maintenance" class="text-primary hover:underline">Settings → Maintenance</a>.
+    </div>
+    {% if retentionDays > 0 %}
+    <form method="POST" action="/logs/cleanup" onsubmit="return confirmCleanup(event)">
+        {{ csrf_field() }}
+        <button type="submit" class="px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium whitespace-nowrap">
+            <i class="fas fa-broom mr-2"></i>Clean up now
+        </button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function confirmCleanup(event) {
+    event.preventDefault();
+    const ok = await confirmAction({ message: 'Delete logs older than {{ retentionDays }} days now? This cannot be undone.' });
+    if (ok) event.target.submit();
+    return false;
+}
+</script>
+{% endblock %}

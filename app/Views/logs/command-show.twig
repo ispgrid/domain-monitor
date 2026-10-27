@@ -1,0 +1,36 @@
+{% extends 'layout/base.twig' %}
+{% import 'logs/_macros.twig' as m %}
+
+{% set title = command.label ~ ' - Logs' %}
+{% set pageTitle = 'Logs' %}
+
+{% block content %}
+{% include 'logs/_tabs.twig' %}
+
+<div class="mb-4">
+    <a href="/logs/commands" class="text-sm text-primary hover:underline"><i class="fas fa-arrow-left mr-1"></i>All commands</a>
+</div>
+
+<div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-5 mb-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ command.label }}</h2>
+        <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold {{ command.exit_code == 0 and command.exit_code is not null ? 'bg-green-100 dark:bg-green-500/10 text-green-800 dark:text-green-400' : 'bg-red-100 dark:bg-red-500/10 text-red-800 dark:text-red-400' }}">Exit code {{ command.exit_code ?? '?' }}</span>
+    </div>
+    <dl class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
+        <div><dt class="text-gray-500 dark:text-slate-400">Started</dt><dd class="text-gray-900 dark:text-white">{{ command.started_at|date('M d, Y H:i:s') }}</dd></div>
+        <div><dt class="text-gray-500 dark:text-slate-400">Duration</dt><dd class="text-gray-900 dark:text-white">{{ m.duration(command.duration_ms) }}</dd></div>
+        <div><dt class="text-gray-500 dark:text-slate-400">Source</dt><dd class="text-gray-900 dark:text-white">{{ command.source|capitalize }}</dd></div>
+        <div><dt class="text-gray-500 dark:text-slate-400">By</dt><dd class="text-gray-900 dark:text-white">{{ command.username ?: (command.user_id ? 'deleted user' : 'System') }}</dd></div>
+    </dl>
+    <p class="text-sm text-gray-500 dark:text-slate-400 mb-1">Command</p>
+    <pre class="p-3 rounded-lg text-xs font-mono bg-gray-50 dark:bg-slate-900 text-gray-800 dark:text-slate-200 whitespace-pre-wrap break-all">{{ command.command }}</pre>
+</div>
+
+<div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+    <div class="px-5 py-3 border-b border-gray-200 dark:border-slate-700">
+        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Output</h3>
+    </div>
+    <pre class="p-4 text-xs leading-5 font-mono text-gray-800 dark:text-slate-200 bg-gray-50 dark:bg-slate-900 overflow-auto max-h-[70vh] whitespace-pre-wrap break-words">{{ command.output ?: 'No output.' }}</pre>
+</div>
+<p class="mt-3 text-xs text-gray-500 dark:text-slate-400"><i class="fas fa-shield-alt mr-1"></i>Passwords and tokens are replaced with *** before commands are saved.</p>
+{% endblock %}

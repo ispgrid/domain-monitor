@@ -35,6 +35,7 @@ A modern PHP MVC application for monitoring domain expiration dates and sending 
 - 📱 **Monitoring Controls** - Enable/disable notifications per domain with alerts
 - 🌍 **RDAP Support** - Modern protocol for faster, structured domain data
 - 🏴 **Geolocation Tracking** - See location, ISP, and device info for all sessions
+- 📜 **Logs** - Cron runs (with Run now), updates, commands, sent alerts, activity, errors and log files in one place, with alerts when a cron job is late or failing (admins only)
 
 ## 📋 Requirements
 
@@ -607,7 +608,7 @@ Domain Monitor/
 
 ### Notifications Not Sending
 
-1. Check logs: `logs/cron.log`
+1. Check **Logs → Notifications** for failed alerts and **Logs → Cron Runs** for the check's output (or `logs/cron.log`)
 2. Verify notification channel configuration in **Settings → Email**
 3. Test email using the built-in test function in Settings
 4. Check SMTP/API credentials in Settings

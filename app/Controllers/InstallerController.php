@@ -69,6 +69,7 @@ class InstallerController extends Controller
             '036_update_app_version_v1.2.6.sql',
             '037_update_app_version_v1.2.7.sql',
             '038_add_passkeys_v1.3.0.sql',
+            '039_add_logs_v1.4.0.sql',
         ];
 
         try {
@@ -224,6 +225,7 @@ class InstallerController extends Controller
                     '036_update_app_version_v1.2.6.sql',
                     '037_update_app_version_v1.2.7.sql',
                     '038_add_passkeys_v1.3.0.sql',
+                    '039_add_logs_v1.4.0.sql',
                 ];
             }
 
@@ -462,6 +464,7 @@ class InstallerController extends Controller
                     '036_update_app_version_v1.2.6.sql',
                     '037_update_app_version_v1.2.7.sql',
                     '038_add_passkeys_v1.3.0.sql',
+                    '039_add_logs_v1.4.0.sql',
                 ];
 
                 $stmt = $pdo->prepare("INSERT INTO migrations (migration) VALUES (?) ON DUPLICATE KEY UPDATE migration=migration");
@@ -618,6 +621,9 @@ class InstallerController extends Controller
         // CSRF Protection
         $this->verifyCsrf('/install/update');
         
+        $migrationStart = microtime(true);
+        $migrationStartedAt = date('Y-m-d H:i:s');
+
         try {
             $pdo = \Core\Database::getConnection();
             $migrations = $this->getPendingMigrations();
@@ -700,7 +706,9 @@ class InstallerController extends Controller
                     
                     // Fallback: detect "to" version from which migrations were run
                     if ($toVersion === $fromVersion) {
-                        if (in_array('038_add_passkeys_v1.3.0.sql', $executed)) {
+                        if (in_array('039_add_logs_v1.4.0.sql', $executed)) {
+                            $toVersion = '1.4.0';
+                        } elseif (in_array('038_add_passkeys_v1.3.0.sql', $executed)) {
                             $toVersion = '1.3.0';
                         } elseif (in_array('037_update_app_version_v1.2.7.sql', $executed)) {
                             $toVersion = '1.2.7';
@@ -741,6 +749,20 @@ class InstallerController extends Controller
                     // Don't fail upgrade if notification fails
                     $this->logger->error("Failed to create upgrade notification: " . $e->getMessage());
                 }
+
+                // Recorded afterwards: the history table may be created by these migrations
+                $historyId = \App\Models\UpdateHistory::begin('migration', [
+                    'from_version' => $fromVersion,
+                    'to_version' => $toVersion ?? null,
+                    'started_at' => $migrationStartedAt,
+                    'log_file' => basename($this->logger->getLogFile()),
+                ]);
+                \App\Models\UpdateHistory::finish($historyId, 'success', [
+                    'details' => ['migrations' => $executed],
+                ], $migrationStart);
+                \App\Models\AuditLog::record('update.migrated', 'Ran ' . count($executed) . ' database migration(s)', [
+                    'changes' => ['migrations' => $executed],
+                ]);
             }
             
             $_SESSION['success'] = count($executed) . ' migration(s) executed successfully';
@@ -753,6 +775,16 @@ class InstallerController extends Controller
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
+            $historyId = \App\Models\UpdateHistory::begin('migration', [
+                'from_version' => $fromVersion ?? null,
+                'started_at' => $migrationStartedAt,
+                'log_file' => basename($this->logger->getLogFile()),
+            ]);
+            \App\Models\UpdateHistory::finish($historyId, 'failed', [
+                'error_message' => $e->getMessage(),
+                'details' => ['migrations' => $executed ?? []],
+            ], $migrationStart);
+
             $_SESSION['error'] = 'Update failed: ' . $e->getMessage();
             $this->redirect('/install/update');
         }

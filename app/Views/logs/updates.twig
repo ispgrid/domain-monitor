@@ -1,0 +1,69 @@
+{% extends 'layout/base.twig' %}
+{% import 'logs/_macros.twig' as m %}
+
+{% set title = 'Updates - Logs' %}
+{% set pageTitle = 'Logs' %}
+{% set actionLabels = {'update': 'Update', 'rollback': 'Rollback', 'migration': 'Database update'} %}
+
+{% block content %}
+{% include 'logs/_tabs.twig' %}
+
+{% if not tablesReady %}{{ m.not_ready() }}{% endif %}
+
+<form method="GET" action="/logs/updates" class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 mb-4 flex flex-wrap items-end gap-3">
+    <div>
+        <label class="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Type</label>
+        <select name="action" class="{{ m.select_class() }}">
+            <option value="">All types</option>
+            {% for key, label in actionLabels %}<option value="{{ key }}" {{ filters.action == key ? 'selected' : '' }}>{{ label }}</option>{% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Result</label>
+        <select name="status" class="{{ m.select_class() }}">
+            <option value="">Any result</option>
+            <option value="success" {{ filters.status == 'success' ? 'selected' : '' }}>Success</option>
+            <option value="failed" {{ filters.status == 'failed' ? 'selected' : '' }}>Failed</option>
+        </select>
+    </div>
+    <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark text-sm font-medium"><i class="fas fa-filter mr-2"></i>Apply</button>
+    <a href="/logs/updates" class="px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium">Clear</a>
+    <a href="/settings#updates" class="ml-auto text-sm text-primary hover:underline self-center">Settings → Updates</a>
+</form>
+
+<div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+    {% if updates is not empty %}
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700 text-sm">
+            <thead class="bg-gray-50 dark:bg-slate-900">
+                <tr>
+                    {% for col in ['Type', 'Version', 'Started', 'Duration', 'Result', 'Files', 'Composer', 'By'] %}
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">{{ col }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-slate-700">
+                {% for u in updates %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer" onclick="window.location='/logs/updates/{{ u.id }}'">
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        <a href="/logs/updates/{{ u.id }}" class="font-medium text-gray-900 dark:text-white hover:text-primary">{{ actionLabels[u.action]|default(u.action) }}</a>
+                        {% if u.update_type %}<span class="ml-1 text-xs text-gray-500 dark:text-slate-400">{{ u.update_type }}</span>{% endif %}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-gray-900 dark:text-white font-mono text-xs">{{ u.from_version ?: '?' }} → {{ u.to_version ?: '?' }}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-slate-400">{{ u.started_at|date('M d, Y H:i') }}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-slate-400">{{ m.duration(u.duration_ms) }}</td>
+                    <td class="px-4 py-3 whitespace-nowrap">{{ m.run_status(u.status) }}</td>
+                    <td class="px-4 py-3 text-gray-900 dark:text-white">{{ u.files_updated ?? '—' }}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-slate-400">{{ {'ran': 'Ran', 'failed': 'Failed', 'manual': 'Run by hand', 'not_needed': 'Not needed'}[u.composer_status]|default('—') }}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-slate-400">{{ u.username ?: '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    {{ m.empty_state('cloud-arrow-down', 'No updates recorded', 'Updates, rollbacks and database updates run from v1.4.0 on appear here.') }}
+    {% endif %}
+</div>
+{{ m.pagination(pagination, filters) }}
+{% endblock %}

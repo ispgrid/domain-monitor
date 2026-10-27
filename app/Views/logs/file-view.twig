@@ -1,0 +1,61 @@
+{% extends 'layout/base.twig' %}
+{% import 'logs/_macros.twig' as m %}
+
+{% set title = file.name ~ ' - Logs' %}
+{% set pageTitle = 'Logs' %}
+
+{% block content %}
+{% include 'logs/_tabs.twig' %}
+
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <a href="/logs/files" class="text-sm text-primary hover:underline"><i class="fas fa-arrow-left mr-1"></i>All log files</a>
+    <a href="/logs/files/download?file={{ file.name|url_encode }}" class="px-3 py-1.5 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium"><i class="fas fa-download mr-1"></i>Download</a>
+</div>
+
+<form method="GET" action="/logs/files/view" class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 mb-4 flex flex-wrap items-end gap-3">
+    <input type="hidden" name="file" value="{{ file.name }}">
+    <div>
+        <label class="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Level</label>
+        <select name="level" class="{{ m.select_class() }}">
+            <option value="">All lines</option>
+            <option value="INFO" {{ filters.level == 'INFO' ? 'selected' : '' }}>Info and above</option>
+            <option value="WARNING" {{ filters.level == 'WARNING' ? 'selected' : '' }}>Warnings and errors</option>
+            <option value="ERROR" {{ filters.level == 'ERROR' ? 'selected' : '' }}>Errors only</option>
+        </select>
+    </div>
+    <div>
+        <label class="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Lines</label>
+        <select name="lines" class="{{ m.select_class() }}">
+            {% for n in [100, 500, 2000, 5000] %}<option value="{{ n }}" {{ filters.lines == n ? 'selected' : '' }}>Last {{ n }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="flex-1 min-w-[12rem]">
+        <label class="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Search</label>
+        <input type="text" name="q" value="{{ filters.q }}" placeholder="Text to find" class="w-full {{ m.select_class() }}">
+    </div>
+    <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark text-sm font-medium"><i class="fas fa-filter mr-2"></i>Apply</button>
+</form>
+
+<div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+    <div class="px-5 py-3 border-b border-gray-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-2">
+        <h2 class="text-sm font-semibold text-gray-900 dark:text-white font-mono">{{ file.name }}</h2>
+        <p class="text-xs text-gray-500 dark:text-slate-400">
+            {{ file.size|format_bytes }} · last written {{ file.modified|date('M d, Y H:i') }} ·
+            {{ content.lines|length }} line(s){{ content.truncated ? ', showing the newest' : '' }}
+        </p>
+    </div>
+    {% if content.lines is not empty %}
+    <pre id="logOutput" class="p-4 text-xs leading-5 font-mono bg-gray-50 dark:bg-slate-900 overflow-auto max-h-[75vh] whitespace-pre-wrap break-words">{% for line in content.lines %}<span class="{{ line.level in ['ERROR', 'CRITICAL'] ? 'text-red-700 dark:text-red-400' : (line.level == 'WARNING' ? 'text-amber-700 dark:text-amber-400' : (line.level == 'DEBUG' ? 'text-gray-500 dark:text-slate-500' : 'text-gray-800 dark:text-slate-200')) }}">{{ line.text }}</span>
+{% endfor %}</pre>
+    {% else %}
+    {{ m.empty_state('search', 'No lines', filters.level or filters.q ? 'No lines match these filters in the part of the file that was read.' : 'This file is empty.') }}
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const logOutput = document.getElementById('logOutput');
+if (logOutput) logOutput.scrollTop = logOutput.scrollHeight;
+</script>
+{% endblock %}

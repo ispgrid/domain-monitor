@@ -1,0 +1,112 @@
+{% extends 'layout/base.twig' %}
+{% import 'logs/_macros.twig' as m %}
+
+{% set title = job.label ~ ' run #' ~ run.id ~ ' - Logs' %}
+{% set pageTitle = 'Logs' %}
+{% set live = run.effective_status in ['queued', 'running'] %}
+
+{% block content %}
+{% include 'logs/_tabs.twig' %}
+
+<div class="mb-4">
+    <a href="/logs/cron" class="text-sm text-primary hover:underline"><i class="fas fa-arrow-left mr-1"></i>All cron runs</a>
+</div>
+
+<div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-5 mb-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ job.label }} <span class="text-gray-400 dark:text-slate-500 font-normal">#{{ run.id }}</span></h2>
+        <span id="runStatus">{{ m.run_status(run.effective_status) }}</span>
+    </div>
+    <dl class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div>
+            <dt class="text-gray-500 dark:text-slate-400">Started</dt>
+            <dd class="text-gray-900 dark:text-white">{{ run.started_at ? run.started_at|date('M d, Y H:i:s') : 'Waiting to start' }}</dd>
+        </div>
+        <div>
+            <dt class="text-gray-500 dark:text-slate-400">Duration</dt>
+            <dd class="text-gray-900 dark:text-white" id="runDuration">{{ m.duration(run.duration_ms) }}</dd>
+        </div>
+        <div>
+            <dt class="text-gray-500 dark:text-slate-400">Started by</dt>
+            <dd class="text-gray-900 dark:text-white">{{ run.trigger_type == 'manual' ? 'Run now · ' ~ (run.username ?: 'deleted user') : 'Cron' }}</dd>
+        </div>
+        <div>
+            <dt class="text-gray-500 dark:text-slate-400">Checked / alerts / errors</dt>
+            <dd class="text-gray-900 dark:text-white" id="runCounts">{{ run.items_checked }} / {{ run.alerts_sent }} / {{ run.errors }}</dd>
+        </div>
+    </dl>
+
+    {% if run.error_message %}
+    <div class="mt-4 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-sm text-red-800 dark:text-red-300">
+        <i class="fas fa-exclamation-triangle mr-2"></i>{{ run.error_message }}
+    </div>
+    {% elseif run.effective_status == 'interrupted' %}
+    <div class="mt-4 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-sm text-red-800 dark:text-red-300">
+        <i class="fas fa-plug mr-2"></i>The job stopped reporting before it finished (killed, timed out or the server restarted). Check the output below and the PHP error log.
+    </div>
+    {% elseif run.effective_status == 'not_started' %}
+    <div class="mt-4 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-sm text-red-800 dark:text-red-300">
+        <i class="fas fa-ban mr-2"></i>The job did not start. PHP may not be on the web server's PATH; see <a href="/logs/commands?source=logs" class="underline">Logs → Commands</a>.
+    </div>
+    {% endif %}
+
+    {% if run.summary_data is not empty %}
+    <div class="mt-4 flex flex-wrap gap-2">
+        {% for key, value in run.summary_data %}
+        <span class="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-slate-700 text-xs text-gray-700 dark:text-slate-300">{{ key|replace({'_': ' '})|capitalize }}: <span class="font-semibold">{{ value }}</span></span>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+    <div class="px-5 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between gap-3">
+        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Output {% if live %}<span id="liveLabel" class="ml-2 text-xs font-normal text-blue-600 dark:text-blue-400"><i class="fas fa-circle text-[8px] mr-1 animate-pulse"></i>live</span>{% endif %}</h3>
+        {% if job.log_file %}
+        <a href="/logs/files?channel={{ job.log_file|replace({'.log': ''}) }}" class="text-sm text-primary hover:underline">Log files</a>
+        {% endif %}
+    </div>
+    <pre id="runOutput" class="p-4 text-xs leading-5 font-mono text-gray-800 dark:text-slate-200 bg-gray-50 dark:bg-slate-900 overflow-auto max-h-[70vh] whitespace-pre-wrap break-words">{{ run.output ?: (live ? 'Waiting for output…' : 'No output was recorded.') }}</pre>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if live %}
+<script>
+(function () {
+    const out = document.getElementById('runOutput');
+    const stickToBottom = () => out.scrollHeight - out.scrollTop - out.clientHeight < 40;
+    out.scrollTop = out.scrollHeight;
+
+    function formatDuration(ms) {
+        if (ms === null) return '—';
+        if (ms < 1000) return ms + 'ms';
+        if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
+        return Math.floor(ms / 60000) + 'm ' + Math.round((ms % 60000) / 1000) + 's';
+    }
+
+    async function poll() {
+        try {
+            const res = await fetch('/logs/cron/{{ run.id }}/status', { headers: { 'Accept': 'application/json' } });
+            if (!res.ok) return setTimeout(poll, 5000);
+            const data = await res.json();
+            const atBottom = stickToBottom();
+            if (data.output) out.textContent = data.output;
+            if (atBottom) out.scrollTop = out.scrollHeight;
+            document.getElementById('runCounts').textContent = data.items_checked + ' / ' + data.alerts_sent + ' / ' + data.errors;
+            if (data.finished) {
+                // Reload once so the status, summary and messages are rendered by the server
+                window.location.reload();
+                return;
+            }
+            document.getElementById('runDuration').textContent = formatDuration(data.duration_ms);
+        } catch (e) {
+            // Try again on the next tick
+        }
+        setTimeout(poll, 2000);
+    }
+    setTimeout(poll, 1500);
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -132,7 +132,7 @@ class Setting extends Model
      */
     public function getAppVersion(): string
     {
-        return $this->getValue('app_version', '1.3.0');
+        return $this->getValue('app_version', '1.4.0');
     }
 
     /**

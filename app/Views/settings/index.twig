@@ -973,6 +973,7 @@
                     <i class="fas fa-file-alt text-orange-500 dark:text-orange-400 mr-2"></i>
                     Log Files
                 </h4>
+                <p class="text-xs text-gray-500 dark:text-slate-400 mb-3">Cron logs start a new file each day (e.g. <code>cron.2026-01-31.log</code>). View and search them in <a href="/logs/files" class="text-primary hover:underline">Logs → Files</a>.</p>
                 <div class="space-y-2">
                     <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600">
                         <div>
@@ -1017,30 +1018,38 @@
         </div>
 
         <div class="p-6">
-            <!-- Clear Logs -->
+            <!-- Logs -->
             <div class="mb-6">
-                <h4 class="text-base font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
-                    <i class="fas fa-trash-alt text-red-500 dark:text-red-400 mr-2"></i>
-                    Clear Old Notification Logs
+                <h4 class="text-base font-semibold text-gray-900 dark:text-white mb-1 flex items-center">
+                    <i class="fas fa-list-alt text-blue-500 dark:text-blue-400 mr-2"></i>
+                    Logs
                 </h4>
-                
-                <div class="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 rounded-lg p-4 mb-4">
-                    <div class="flex">
-                        <i class="fas fa-exclamation-triangle text-yellow-600 dark:text-yellow-400 mt-0.5 mr-3"></i>
-                        <div>
-                            <p class="text-sm font-medium text-gray-900 dark:text-white">Warning</p>
-                            <p class="text-sm text-gray-700 dark:text-slate-300 mt-1">
-                                This will permanently delete all notification logs older than 30 days. This action cannot be undone.
-                            </p>
-                        </div>
-                    </div>
-                </div>
+                <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">
+                    Cron runs, commands, activity, sent notifications, resolved errors and dated log files older than this are deleted once a day by the domain check cron. Update history is always kept. See <a href="/logs" class="text-primary hover:underline">Logs</a>.
+                </p>
 
-                <form method="POST" action="/settings/clear-logs" onsubmit="return confirmSubmit(event, 'Are you sure you want to clear logs older than 30 days? This action cannot be undone.')">
+                <form method="POST" action="/settings/update-logs" class="space-y-4 max-w-xl">
                     {{ csrf_field() }}
-                    <button type="submit" class="inline-flex items-center px-4 py-2.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors font-medium">
-                        <i class="fas fa-trash-alt mr-2"></i>
-                        Clear Old Logs
+                    <div>
+                        <label for="log_retention_days" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">Keep logs for</label>
+                        {% set retention = settings.log_retention_days|default('30') %}
+                        <select id="log_retention_days" name="log_retention_days" class="w-full sm:w-64 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary">
+                            {% for days in [7, 14, 30, 60, 90, 180, 365] %}
+                            <option value="{{ days }}" {{ retention == days ~ '' ? 'selected' : '' }}>{{ days }} days{{ days == 30 ? ' (default)' : '' }}</option>
+                            {% endfor %}
+                            <option value="0" {{ retention == '0' ? 'selected' : '' }}>Forever (never delete)</option>
+                        </select>
+                    </div>
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" name="cron_alerts_enabled" value="1" {{ settings.cron_alerts_enabled|default('1') == '1' ? 'checked' : '' }} class="mt-0.5 rounded border-gray-300 dark:border-slate-600 text-primary focus:ring-primary">
+                        <span>
+                            <span class="block text-sm font-medium text-gray-900 dark:text-white">Alert admins about cron problems</span>
+                            <span class="block text-xs text-gray-500 dark:text-slate-400 mt-0.5">Send an in-app notification when a cron job has not run for twice its interval, or its last two runs failed. Admins also see a banner until it is fixed.</span>
+                        </span>
+                    </label>
+                    <button type="submit" class="inline-flex items-center px-4 py-2.5 bg-primary text-white text-sm rounded-lg hover:bg-primary-dark transition-colors font-medium">
+                        <i class="fas fa-save mr-2"></i>
+                        Save
                     </button>
                 </form>
             </div>
