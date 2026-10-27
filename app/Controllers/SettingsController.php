@@ -267,6 +267,7 @@ class SettingsController extends Controller
             $this->settingModel->setValue('check_interval_hours', $checkInterval);
             $this->settingModel->setValue('ssl_notification_days', implode(',', $sslDays));
             $this->settingModel->updateNotificationStatusTriggers($statusTriggers);
+            $this->settingModel->setValue('webhook_allow_private', isset($_POST['webhook_allow_private']) ? '1' : '0');
 
             $this->auditSettings('monitoring');
             $_SESSION['success'] = 'Settings updated successfully';
@@ -452,7 +453,8 @@ class SettingsController extends Controller
                 'mail_password' => trim($_POST['mail_password'] ?? ''),
                 'mail_encryption' => $encryption,
                 'mail_from_address' => trim($_POST['mail_from_address'] ?? ''),
-                'mail_from_name' => trim($_POST['mail_from_name'] ?? 'Domain Monitor')
+                'mail_from_name' => trim($_POST['mail_from_name'] ?? 'Domain Monitor'),
+                'mail_verify_certificate' => isset($_POST['mail_verify_certificate']) ? '1' : '0'
             ];
 
             // Validate required fields

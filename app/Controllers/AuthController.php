@@ -83,6 +83,20 @@ class AuthController extends Controller
             return;
         }
 
+        // Too many failed passwords for this account (or from this IP) stops further tries for a while
+        $throttle = new \App\Services\LoginThrottle();
+        $clientIp = \App\Services\LoginThrottle::clientIp();
+        $waitMinutes = $throttle->loginBlockedFor($username, $clientIp);
+        if ($waitMinutes > 0) {
+            $this->logger->warning("Login blocked - too many failed attempts", [
+                'username' => $username,
+                'ip' => $clientIp
+            ]);
+            $_SESSION['error'] = "Too many failed sign-in attempts. Please try again in {$waitMinutes} minute" . ($waitMinutes === 1 ? '' : 's') . '.';
+            $this->redirect('/login');
+            return;
+        }
+
         // Find user by username or email
         $user = $this->userModel->findByUsername($username);
         
@@ -103,6 +117,7 @@ class AuthController extends Controller
             \App\Models\AuditLog::record('auth.login_failed', 'Sign-in failed: unknown user "' . mb_substr($username, 0, 100) . '"', [
                 'user_id' => null,
             ]);
+            $throttle->recordLoginFailure($username, $clientIp);
             $_SESSION['error'] = 'Invalid username or password';
             $this->redirect('/login');
             return;
@@ -130,11 +145,14 @@ class AuthController extends Controller
                 'user_id' => $user['id'],
                 'username' => $user['username'],
             ]);
+            $throttle->recordLoginFailure($username, $clientIp);
 
             $_SESSION['error'] = 'Invalid username or password';
             $this->redirect('/login');
             return;
         }
+
+        $throttle->clearLoginFailures($username, $clientIp);
         
         $logger = new \App\Services\Logger();
         $logger->info("Login successful", [
@@ -584,13 +602,26 @@ class AuthController extends Controller
             return;
         }
 
+        $throttle = new \App\Services\LoginThrottle();
+        $clientIp = \App\Services\LoginThrottle::clientIp();
+        $waitMinutes = $throttle->resetBlockedFor($clientIp);
+        if ($waitMinutes > 0) {
+            $_SESSION['error'] = "Too many reset requests. Please try again in {$waitMinutes} minute" . ($waitMinutes === 1 ? '' : 's') . '.';
+            $this->redirect('/forgot-password');
+            return;
+        }
+
         try {
+            // Over the per-address limit the page still says "sent", so it gives nothing away
+            $sendAllowed = $throttle->resetEmailAllowed($email);
+            $throttle->recordReset($email, $clientIp);
+
             $users = $this->userModel->where('email', $email);
             
             // Always show success message to prevent email enumeration
             $_SESSION['success'] = 'If an account exists with that email, you will receive password reset instructions.';
 
-            if (!empty($users)) {
+            if (!empty($users) && $sendAllowed) {
                 $user = $users[0];
 
                 // Generate reset token

@@ -73,6 +73,7 @@ class InstallerController extends Controller
             '040_update_app_version_v1.4.1.sql',
             '041_add_notification_choices_v1.5.0.sql',
             '042_update_app_version_v1.5.1.sql',
+            '043_add_security_fixes_v1.5.2.sql',
         ];
 
         try {
@@ -232,6 +233,7 @@ class InstallerController extends Controller
                     '040_update_app_version_v1.4.1.sql',
                     '041_add_notification_choices_v1.5.0.sql',
                     '042_update_app_version_v1.5.1.sql',
+                    '043_add_security_fixes_v1.5.2.sql',
                 ];
             }
 
@@ -417,9 +419,7 @@ class InstallerController extends Controller
                                 $successCount++;
                             } catch (\PDOException $e2) {
                                 // Ignore duplicate/already exists errors - these are expected with IF NOT EXISTS
-                                if (strpos($e2->getMessage(), 'Duplicate') === false && 
-                                    strpos($e2->getMessage(), 'already exists') === false &&
-                                    strpos($e2->getMessage(), 'Table') === false) {
+                                if (!$this->isAlreadyAppliedError($e2)) {
                                     $this->logger->error("Statement failed: " . $statement . " - Error: " . $e2->getMessage());
                                     throw $e2;
                                 }
@@ -474,6 +474,7 @@ class InstallerController extends Controller
                     '040_update_app_version_v1.4.1.sql',
                     '041_add_notification_choices_v1.5.0.sql',
                     '042_update_app_version_v1.5.1.sql',
+                    '043_add_security_fixes_v1.5.2.sql',
                 ];
 
                 $stmt = $pdo->prepare("INSERT INTO migrations (migration) VALUES (?) ON DUPLICATE KEY UPDATE migration=migration");
@@ -522,9 +523,7 @@ class InstallerController extends Controller
                                     $pdo->exec($statement);
                                 } catch (\PDOException $e2) {
                                     // Ignore duplicate/already exists errors
-                                    if (strpos($e2->getMessage(), 'Duplicate') === false && 
-                                        strpos($e2->getMessage(), 'already exists') === false &&
-                                        strpos($e2->getMessage(), 'Table') === false) {
+                                    if (!$this->isAlreadyAppliedError($e2)) {
                                         throw $e2;
                                     }
                                 }
@@ -677,9 +676,7 @@ class InstallerController extends Controller
                                 $pdo->exec($statement);
                             } catch (\PDOException $e2) {
                                 // Ignore duplicate/already exists errors
-                                if (strpos($e2->getMessage(), 'Duplicate') === false && 
-                                    strpos($e2->getMessage(), 'already exists') === false &&
-                                    strpos($e2->getMessage(), 'Table') === false) {
+                                if (!$this->isAlreadyAppliedError($e2)) {
                                     throw $e2;
                                 }
                             }
@@ -715,7 +712,9 @@ class InstallerController extends Controller
                     
                     // Fallback: detect "to" version from which migrations were run
                     if ($toVersion === $fromVersion) {
-                        if (in_array('042_update_app_version_v1.5.1.sql', $executed)) {
+                        if (in_array('043_add_security_fixes_v1.5.2.sql', $executed)) {
+                            $toVersion = '1.5.2';
+                        } elseif (in_array('042_update_app_version_v1.5.1.sql', $executed)) {
                             $toVersion = '1.5.1';
                         } elseif (in_array('041_add_notification_choices_v1.5.0.sql', $executed)) {
                             $toVersion = '1.5.0';
@@ -828,6 +827,27 @@ class InstallerController extends Controller
         ]);
     }
     
+    /**
+     * Errors that only mean a statement already ran (table, column, index, key or row
+     * already there, or already dropped), so a re-run can skip them. Anything else,
+     * such as a missing table, is a real failure and stops the migration.
+     */
+    private function isAlreadyAppliedError(\PDOException $e): bool
+    {
+        $alreadyApplied = [
+            1022, // duplicate key
+            1050, // table already exists
+            1060, // duplicate column
+            1061, // duplicate index name
+            1062, // duplicate entry
+            1068, // multiple primary keys
+            1091, // can't drop: column or index doesn't exist
+            1826, // duplicate foreign key name
+        ];
+
+        return in_array((int)($e->errorInfo[1] ?? 0), $alreadyApplied, true);
+    }
+
     /**
      * Parse SQL statements from a SQL file (fallback method)
      */

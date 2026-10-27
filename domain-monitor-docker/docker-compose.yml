@@ -33,7 +33,7 @@ services:
       - dbdata:/var/lib/mysql
 
   pma:
-    image: phpmyadmin:latest
+    image: phpmyadmin:5.2
     container_name: domain-monitor-pma
     restart: unless-stopped
     environment:
@@ -41,7 +41,8 @@ services:
       UPLOAD_LIMIT: 256M
       TZ: ${TZ:-UTC}
     ports:
-      - "8081:80"
+      # Local only: reach it over an SSH tunnel. Set PMA_BIND=0.0.0.0 in .env.docker to open it up.
+      - "${PMA_BIND:-127.0.0.1}:8081:80"
     depends_on:
       - db
 

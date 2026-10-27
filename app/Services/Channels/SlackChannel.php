@@ -30,7 +30,7 @@ class SlackChannel implements NotificationChannelInterface
 
             $response = $this->client->post($config['webhook_url'], [
                 'json' => $payload
-            ]);
+            ] + WebhookUrlGuard::requestOptions($config['webhook_url']));
 
             $ok = $response->getStatusCode() === 200;
             if ($ok) {

@@ -373,12 +373,18 @@
                                         <i class="fas fa-eye"></i>
                                     </a>
                                     {% if session.role is defined and session.role == 'admin' %}
-                                    <a href="/tld-registry/{{ tld.id }}/refresh" class="text-green-600 hover:text-green-800" title="Refresh" onclick="return confirmClick(event, 'Refresh TLD data from IANA?', { title: 'Refresh TLD', icon: 'fa-sync text-green-500', confirmText: 'Refresh', confirmClass: 'bg-green-600 hover:bg-green-700' })">
-                                        <i class="fas fa-sync-alt"></i>
-                                    </a>
-                                    <a href="/tld-registry/{{ tld.id }}/toggle-active" class="text-orange-600 hover:text-orange-800" title="Toggle Status" onclick="return confirmClick(event, 'Toggle TLD status?', { title: 'Toggle Status', icon: 'fa-toggle-on text-orange-500', confirmText: 'Toggle', confirmClass: 'bg-orange-600 hover:bg-orange-700' })">
-                                        <i class="fas fa-power-off"></i>
-                                    </a>
+                                    <form method="POST" action="/tld-registry/{{ tld.id }}/refresh" class="inline">
+                                        {{ csrf_field() }}
+                                        <button type="submit" class="text-green-600 hover:text-green-800" title="Refresh" onclick="return confirmClick(event, 'Refresh TLD data from IANA?', { title: 'Refresh TLD', icon: 'fa-sync text-green-500', confirmText: 'Refresh', confirmClass: 'bg-green-600 hover:bg-green-700' })">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="/tld-registry/{{ tld.id }}/toggle-active" class="inline">
+                                        {{ csrf_field() }}
+                                        <button type="submit" class="text-orange-600 hover:text-orange-800" title="Toggle Status" onclick="return confirmClick(event, 'Toggle TLD status?', { title: 'Toggle Status', icon: 'fa-toggle-on text-orange-500', confirmText: 'Toggle', confirmClass: 'bg-orange-600 hover:bg-orange-700' })">
+                                            <i class="fas fa-power-off"></i>
+                                        </button>
+                                    </form>
                                     {% endif %}
                                 </div>
                             </td>
@@ -458,9 +464,12 @@
                             <i class="fas fa-eye mr-1"></i> View
                         </a>
                         {% if session.role is defined and session.role == 'admin' %}
-                        <a href="/tld-registry/{{ tld.id }}/refresh" class="flex-1 px-3 py-1.5 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 rounded text-center text-sm hover:bg-green-100 dark:hover:bg-green-500/20 transition-colors" onclick="return confirmClick(event, 'Refresh TLD data?', { title: 'Refresh TLD', icon: 'fa-sync text-green-500', confirmText: 'Refresh', confirmClass: 'bg-green-600 hover:bg-green-700' })">
-                            <i class="fas fa-sync-alt mr-1"></i> Refresh
-                        </a>
+                        <form method="POST" action="/tld-registry/{{ tld.id }}/refresh" class="flex-1">
+                            {{ csrf_field() }}
+                            <button type="submit" class="w-full px-3 py-1.5 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 rounded text-center text-sm hover:bg-green-100 dark:hover:bg-green-500/20 transition-colors" onclick="return confirmClick(event, 'Refresh TLD data?', { title: 'Refresh TLD', icon: 'fa-sync text-green-500', confirmText: 'Refresh', confirmClass: 'bg-green-600 hover:bg-green-700' })">
+                                <i class="fas fa-sync-alt mr-1"></i> Refresh
+                            </button>
+                        </form>
                         {% endif %}
                     </div>
                 </div>

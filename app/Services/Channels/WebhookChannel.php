@@ -37,7 +37,7 @@ class WebhookChannel implements NotificationChannelInterface
                     'Content-Type' => 'application/json; charset=UTF-8'
                 ],
                 'json' => $payload
-            ]);
+            ] + WebhookUrlGuard::requestOptions($url));
 
             $status = $response->getStatusCode();
             $ok = $status >= 200 && $status < 300;

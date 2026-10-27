@@ -29,13 +29,34 @@ dc() {
 }
 
 fail() { echo "Error: $*" >&2; exit 1; }
+
+# Double-quote a value for the app's .env: \ " and $ are escaped, everything else is literal
+dotenv_quote() {
+  local s="$1" out="" c i
+  for (( i=0; i<${#s}; i++ )); do
+    c="${s:i:1}"
+    case "$c" in
+      '\'|'"'|'$') out+="\\$c" ;;
+      *) out+="$c" ;;
+    esac
+  done
+  printf '"%s"' "$out"
+}
+
+# Set KEY in an env file. awk reads the line from the environment, so no character in
+# the value (& # / \ etc.) is treated specially.
 upsert_kv() {
-  local file="$1" key="$2" val="$3"
-  if grep -qE "^${key}=" "$file" 2>/dev/null; then
-    sed -i "s#^${key}=.*#${key}=${val}#g" "$file"
-  else
-    printf "%s=%s\n" "$key" "$val" >> "$file"
-  fi
+  local file="$1" key="$2" line tmp
+  line="${key}=$(dotenv_quote "$3")"
+  tmp="$(mktemp)"
+  KV_KEY="$key" KV_LINE="$line" awk '
+    BEGIN { k = ENVIRON["KV_KEY"] "="; l = ENVIRON["KV_LINE"] }
+    index($0, k) == 1 { if (!done) print l; done = 1; next }
+    { print }
+    END { if (!done) print l }
+  ' "$file" > "$tmp"
+  cat "$tmp" > "$file"
+  rm -f "$tmp"
 }
 
 echo "==> Domain Monitor bootstrap"
@@ -136,6 +157,9 @@ if [ -f "$APP_DIR/.env" ]; then
   chmod 660 "$APP_DIR/.env"
 fi
 
+# .env backups hold old passwords: readable by root only (the 644 above opened them up)
+find "$APP_DIR" -maxdepth 1 -name '.env.bak.*' -type f -exec chown ${ROOT_UID}:${ROOT_UID} {} + -exec chmod 600 {} +
+
 # Install vendors via Composer container
 echo "==> Installing Composer vendors (composer:2) ..."
 docker run --rm -v "$APP_DIR":/app -w /app composer:2 install --no-interaction --prefer-dist
@@ -146,5 +170,6 @@ dc up -d --build
 
 echo "==> Done."
 echo "    App URL:     http://<SERVER_IP>:8080"
-echo "    phpMyAdmin:  http://<SERVER_IP>:8081 (Server: domain-monitor-mariadb)"
+echo "    phpMyAdmin:  http://127.0.0.1:8081 on this host only (Server: domain-monitor-mariadb)"
+echo "                 From another machine: ssh -L 8081:127.0.0.1:8081 <user>@<SERVER_IP>"
 echo "    Note: On the host, UID 33 may display as 'tape'; inside the container it's www-data. This is normal."

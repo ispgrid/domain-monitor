@@ -98,13 +98,16 @@ class EmailHelper
         
         // Configure timeouts and SSL options
         $mail->Timeout = 30; // 30 seconds total timeout
-        $mail->SMTPOptions = [
-            'ssl' => [
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true
-            ]
-        ];
+        // The server's certificate is checked unless the admin turned it off (self-signed certificates)
+        if (!$emailSettings['mail_verify_certificate']) {
+            $mail->SMTPOptions = [
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                    'allow_self_signed' => true
+                ]
+            ];
+        }
         
         // Set character encoding
         $mail->CharSet = 'UTF-8';

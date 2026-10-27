@@ -6,6 +6,7 @@ use Core\Controller;
 use App\Models\AuditLog;
 use App\Models\NotificationGroup;
 use App\Models\NotificationChannel;
+use App\Services\Channels\WebhookUrlGuard;
 
 class NotificationGroupController extends Controller
 {
@@ -669,6 +670,13 @@ class NotificationGroupController extends Controller
             return;
         }
 
+        $urlError = isset($config['webhook_url']) ? WebhookUrlGuard::check($config['webhook_url']) : null;
+        if ($urlError !== null) {
+            $_SESSION['error'] = "Invalid webhook URL: {$urlError}";
+            $this->redirect("/groups/$groupId/edit");
+            return;
+        }
+
         try {
             $this->channelModel->createChannel($groupId, $channelType, $config);
             AuditLog::record('group.channel_added', "Added a $channelType channel to \"{$group['name']}\"", ['entity_type' => 'group', 'entity_id' => (int)$groupId]);
@@ -781,6 +789,19 @@ class NotificationGroupController extends Controller
                 $this->redirect($groupId ? "/groups/$groupId/edit" : '/groups');
                 return;
             }
+        }
+
+        $urlError = isset($config['webhook_url']) ? WebhookUrlGuard::check($config['webhook_url']) : null;
+        if ($urlError !== null) {
+            if ($isAjax) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => "Invalid webhook URL: {$urlError}"]);
+            } else {
+                $_SESSION['error'] = "Invalid webhook URL: {$urlError}";
+                $groupId = $_POST['group_id'] ?? 0;
+                $this->redirect($groupId ? "/groups/$groupId/edit" : '/groups');
+            }
+            return;
         }
 
         try {

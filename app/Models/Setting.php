@@ -132,7 +132,7 @@ class Setting extends Model
      */
     public function getAppVersion(): string
     {
-        return $this->getValue('app_version', '1.5.1');
+        return $this->getValue('app_version', '1.5.2');
     }
 
     /**
@@ -191,7 +191,8 @@ class Setting extends Model
             'mail_password' => $decryptedPassword,
             'mail_encryption' => $this->getValue('mail_encryption', 'tls'),
             'mail_from_address' => $this->getValue('mail_from_address', 'noreply@domainmonitor.com'),
-            'mail_from_name' => $this->getValue('mail_from_name', 'Domain Monitor')
+            'mail_from_name' => $this->getValue('mail_from_name', 'Domain Monitor'),
+            'mail_verify_certificate' => $this->getValue('mail_verify_certificate', '1') !== '0'
         ];
     }
 

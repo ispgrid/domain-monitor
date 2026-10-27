@@ -46,7 +46,21 @@ The bootstrap script loads environment variables from `.env.docker` into the she
 After running the bootstrap script, you'll have:
 
 - **Domain Monitor App**: http://localhost:8080
-- **phpMyAdmin**: http://localhost:8081 (Server: `domain-monitor-mariadb`)
+- **phpMyAdmin**: http://127.0.0.1:8081 (Server: `domain-monitor-mariadb`)
+
+phpMyAdmin only listens on the host itself, so the database login page isn't open to the network. From another machine, use an SSH tunnel and then open http://127.0.0.1:8081 locally:
+
+```bash
+ssh -L 8081:127.0.0.1:8081 user@your-server
+```
+
+To expose it anyway (not recommended), add `PMA_BIND=0.0.0.0` to `.env.docker` and re-run `./bootstrap.sh`.
+
+### Passwords and secrets
+
+- `.env.docker` is read by the shell. Put values containing spaces or `& # $ ;` in single quotes, e.g. `DB_PASSWORD='p&ss#word'`, and keep the file private with `chmod 600 .env.docker`.
+- The bootstrap writes the values to `app/.env` quoted, so any character works.
+- Each run backs up the old `app/.env` as `app/.env.bak.<timestamp>`, readable by root only. Delete old backups you don't need.
 
 ## Managing the Docker Stack
 

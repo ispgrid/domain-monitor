@@ -99,6 +99,18 @@ CREATE TABLE IF NOT EXISTS two_factor_verification_attempts (
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Failed sign-ins and password reset requests, for the attempt limits (rows older than a day are removed)
+CREATE TABLE IF NOT EXISTS login_attempts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    type VARCHAR(16) NOT NULL COMMENT 'login or reset',
+    identifier VARCHAR(255) NOT NULL COMMENT 'Username or email as typed, lowercased',
+    ip_address VARCHAR(45) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_login_attempts_ip (type, ip_address, created_at),
+    INDEX idx_login_attempts_identifier (type, identifier, created_at),
+    INDEX idx_login_attempts_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Passkeys (WebAuthn credentials)
 CREATE TABLE IF NOT EXISTS user_passkeys (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -530,7 +542,7 @@ INSERT INTO settings (setting_key, setting_value, `type`, `description`) VALUES
 ('app_name', 'Domain Monitor', 'string', 'Application name'),
 ('app_url', 'http://localhost:8000', 'string', 'Application URL'),
 ('app_timezone', 'UTC', 'string', 'Application timezone'),
-('app_version', '1.5.1','string', 'Application version number'),
+('app_version', '1.5.2','string', 'Application version number'),
 
 -- Email settings
 ('mail_host', 'smtp.mailtrap.io', 'string', 'SMTP server host'),
@@ -540,12 +552,14 @@ INSERT INTO settings (setting_key, setting_value, `type`, `description`) VALUES
 ('mail_encryption', 'tls', 'string', 'SMTP encryption (tls/ssl)'),
 ('mail_from_address', 'noreply@domainmonitor.com', 'string', 'From email address'),
 ('mail_from_name', 'Domain Monitor', 'string', 'From name'),
+('mail_verify_certificate', '1', 'boolean', 'Check the SMTP server certificate'),
 
 -- Monitoring settings
 ('notification_days_before', '60,30,21,14,7,5,3,2,1', 'string', 'Notification days before expiration'),
 ('notification_status_triggers', 'available,registered,expired,redemption_period,pending_delete', 'string', 'Domain status changes that trigger notifications'),
 ('check_interval_hours', '24', 'string', 'Domain check interval in hours'),
 ('last_check_run', NULL, 'datetime', 'Last time cron job ran'),
+('webhook_allow_private', '0', 'boolean', 'Allow webhook channels to reach local and private network addresses'),
 
 -- Authentication settings
 ('registration_enabled', '0', 'boolean', 'Enable user registration'),

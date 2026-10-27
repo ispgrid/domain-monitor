@@ -296,6 +296,20 @@
                            placeholder="Domain Monitor"
                            class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
                 </div>
+
+                <div class="md:col-span-2 flex items-start">
+                    <div class="flex items-center h-5">
+                        <input type="checkbox" id="mail_verify_certificate" name="mail_verify_certificate" value="1"
+                               {{ (emailSettings.mail_verify_certificate ?? true) ? 'checked' : '' }}
+                               class="w-4 h-4 text-primary border-gray-300 dark:border-slate-600 rounded focus:ring-primary">
+                    </div>
+                    <div class="ml-3">
+                        <label for="mail_verify_certificate" class="text-sm font-medium text-gray-700 dark:text-slate-300">
+                            Verify SMTP certificate
+                        </label>
+                        <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Checks that the mail server's certificate is valid and matches the host name, so the SMTP password and reset emails can't be intercepted. Untick only for a server with a self-signed certificate, or when the host is an IP address.</p>
+                    </div>
+                </div>
             </div>
 
             <div class="flex items-center justify-between pt-6 mt-6 border-t border-gray-200 dark:border-slate-700">
@@ -542,6 +556,29 @@
                             {% endfor %}
                         </select>
                         <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Last cronjob run times are shown in the System tab</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-200 dark:border-slate-700 my-6"></div>
+
+            <!-- Webhook addresses -->
+            <div class="mb-6">
+                <h4 class="text-base font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                    <i class="fas fa-network-wired text-primary mr-2"></i>
+                    Webhook Addresses
+                </h4>
+                <div class="flex items-start">
+                    <div class="flex items-center h-5">
+                        <input type="checkbox" id="webhook_allow_private" name="webhook_allow_private" value="1"
+                               {{ (settings.webhook_allow_private ?? '0') == '1' ? 'checked' : '' }}
+                               class="w-4 h-4 text-primary border-gray-300 dark:border-slate-600 rounded focus:ring-primary">
+                    </div>
+                    <div class="ml-3">
+                        <label for="webhook_allow_private" class="text-sm font-medium text-gray-700 dark:text-slate-300">
+                            Allow webhooks to local and private network addresses
+                        </label>
+                        <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Webhook, Discord, Slack and Mattermost channels can't reach this server, the local network (10.x, 192.168.x, 172.16-31.x), or cloud metadata addresses, so a user can't use them to probe internal services. Tick this only if your chat server or automation tool runs on your own network and every user is trusted.</p>
                     </div>
                 </div>
             </div>

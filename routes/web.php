@@ -137,8 +137,8 @@ $router->get('/tld-registry/import-progress/{log_id}', [TldRegistryController::c
 $router->get('/tld-registry/api/import-progress', [TldRegistryController::class, 'apiGetImportProgress']);
 $router->post('/tld-registry/bulk-delete', [TldRegistryController::class, 'bulkDelete']);
 $router->get('/tld-registry/check-updates', [TldRegistryController::class, 'checkUpdates']);
-$router->get('/tld-registry/{id}/toggle-active', [TldRegistryController::class, 'toggleActive']);
-$router->get('/tld-registry/{id}/refresh', [TldRegistryController::class, 'refresh']);
+$router->post('/tld-registry/{id}/toggle-active', [TldRegistryController::class, 'toggleActive']);
+$router->post('/tld-registry/{id}/refresh', [TldRegistryController::class, 'refresh']);
 $router->post('/tld-registry/{id}/update-whois-server', [TldRegistryController::class, 'updateWhoisServer']);
 $router->post('/tld-registry/{id}/update-rdap-servers', [TldRegistryController::class, 'updateRdapServers']);
 $router->get('/tld-registry/import-logs', [TldRegistryController::class, 'importLogs']);

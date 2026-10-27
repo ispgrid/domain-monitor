@@ -29,7 +29,7 @@ class DiscordChannel implements NotificationChannelInterface
                 'json' => [
                     'embeds' => [$embed]
                 ]
-            ]);
+            ] + WebhookUrlGuard::requestOptions($config['webhook_url']));
 
             $ok = $response->getStatusCode() === 204;
             if ($ok) {

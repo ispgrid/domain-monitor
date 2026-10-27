@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-10-27
+
+Security release. Fixes the issues found in a security review of the app, the installer and the Docker setup.
+
+### Security
+- **Sign-in attempt limit** - After 5 wrong passwords for one account from one IP address, or 20 failed sign-ins from one IP address, sign-in is paused for 15 minutes. A successful sign-in clears that account's failures. Before, passwords could be guessed without limit unless CAPTCHA was turned on
+- **Password reset limit** - Each IP address can request 10 password resets per 15 minutes, and each email address gets at most 3 reset emails per 15 minutes. Over the per-address limit the page still says the email was sent, so it doesn't reveal which addresses have accounts
+- **SMTP certificate check** - Email now checks the mail server's TLS certificate and host name. Before, any certificate was accepted, so someone on the network path could pose as the mail server and read the SMTP password, password-reset links and 2FA email codes. For a mail server with a self-signed certificate, or one set by IP address, untick **Settings → Email → Verify SMTP certificate**
+- **Webhook addresses** - Webhook, Discord, Slack and Mattermost channels can no longer send to this server, the local network or cloud metadata addresses (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, ::1, fc00::/7 and other non-public ranges). Before, any signed-in user could use a channel or "Test channel" to make the server send requests to internal services. Redirects are no longer followed, and each request goes to the address that was checked. If your chat server or automation tool runs on your own network, tick **Settings → Monitoring → Allow webhooks to local and private network addresses**
+- **TLD Registry actions need a form post** - Refresh and Enable/Disable on a TLD now use POST with a CSRF token. Before, they were plain links, so another site could make a signed-in admin's browser run them
+- **Docker: phpMyAdmin is local only** - phpMyAdmin now listens on 127.0.0.1:8081 instead of every network interface, and the image is pinned to 5.2. Use an SSH tunnel to reach it, or set `PMA_BIND=0.0.0.0` in `.env.docker` to open it up
+- **Docker: `.env` backups readable by root only** - The bootstrap set every file to 644, so old `.env` backups (with database passwords) were readable by any user on the host. Backups, including ones made before, are now 600
+
+### Fixed
+- **Database updates stop on real errors** - When a migration fell back to running statement by statement, any error whose text contained "Table" was ignored, including "Table ... doesn't exist", and the migration was still marked as done. Only errors that mean a step already ran (table, column, index, key or row already there, or already dropped) are skipped now; any other error stops the update and the migration stays pending, so it can run again
+- **Docker: passwords with `&`, `#`, `$`, `\` or quotes** - The bootstrap wrote values into `app/.env` with `sed`, which changed or broke passwords containing `&` or `#`. Values are now written quoted, exactly as given. In `.env.docker`, put such values in single quotes
+
+Migrations: 043_add_security_fixes_v1.5.2.sql
+
 ## [1.5.1] - 2026-10-27
 
 ### Changed

@@ -504,6 +504,7 @@ class TldRegistryController extends Controller
     public function toggleActive($params = [])
     {
         Auth::requireAdmin();
+        $this->verifyCsrf('/tld-registry');
         
         $id = $params['id'] ?? 0;
         $tld = $this->tldModel->find($id);
@@ -536,6 +537,7 @@ class TldRegistryController extends Controller
     public function refresh($params = [])
     {
         Auth::requireAdmin();
+        $this->verifyCsrf('/tld-registry');
         
         $id = $params['id'] ?? 0;
         $tld = $this->tldModel->find($id);
