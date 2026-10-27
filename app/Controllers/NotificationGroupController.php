@@ -106,6 +106,7 @@ class NotificationGroupController extends Controller
                 $exportData[] = [
                     'group_name' => $group['name'],
                     'group_description' => $group['description'] ?? '',
+                    'alerts' => array_keys(array_filter(NotificationGroup::ALERT_TYPES, fn($label, $type) => (int)($group['notify_' . $type] ?? 1) === 1, ARRAY_FILTER_USE_BOTH)),
                     'channels' => $maskedChannels
                 ];
             }
@@ -263,7 +264,9 @@ class NotificationGroupController extends Controller
                     'name' => $groupName,
                     'description' => trim($groupData['group_description'] ?? ''),
                     'user_id' => $isolationMode === 'isolated' ? $userId : null
-                ]);
+                ] + (is_array($groupData['alerts'] ?? null)
+                    ? NotificationGroup::alertSettingsFromPost(array_fill_keys(array_map(fn($t) => 'notify_' . $t, $groupData['alerts']), 1))
+                    : []));
 
                 if ($groupId && !empty($groupData['channels'])) {
                     foreach ($groupData['channels'] as $ch) {
@@ -410,7 +413,8 @@ class NotificationGroupController extends Controller
     public function create()
     {
         $this->view('groups/create', [
-            'title' => 'Create Notification Group'
+            'title' => 'Create Notification Group',
+            'alertTypes' => NotificationGroup::ALERT_TYPES
         ]);
     }
 
@@ -457,7 +461,7 @@ class NotificationGroupController extends Controller
             $groupData = [
                 'name' => $name,
                 'description' => $description
-            ];
+            ] + NotificationGroup::alertSettingsFromPost($_POST);
             
             // Assign to current user if in isolated mode
             if ($isolationMode === 'isolated') {
@@ -501,7 +505,8 @@ class NotificationGroupController extends Controller
 
         $this->view('groups/edit', [
             'group' => $group,
-            'title' => 'Edit Group: ' . $group['name']
+            'title' => 'Edit Group: ' . $group['name'],
+            'alertTypes' => NotificationGroup::ALERT_TYPES
         ]);
     }
 
@@ -552,7 +557,7 @@ class NotificationGroupController extends Controller
             $this->groupModel->update($id, [
                 'name' => $name,
                 'description' => $description
-            ]);
+            ] + NotificationGroup::alertSettingsFromPost($_POST));
 
             // Log group update
             $logger = new \App\Services\Logger();

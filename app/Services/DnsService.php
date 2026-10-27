@@ -85,6 +85,12 @@ class DnsService
         $this->logger = new Logger('dns');
     }
 
+    // Trailing dot: an absolute name is never retried with the resolver's search suffixes
+    private static function absolute(string $name): string
+    {
+        return rtrim($name, '.') . '.';
+    }
+
     /**
      * Record types queried on the root domain, plus CAA where PHP supports it
      */
@@ -128,6 +134,9 @@ class DnsService
         }
 
         foreach (self::SPECIAL_TXT_SUBDOMAINS as $sub) {
+            if (in_array($sub, $existingHosts, true)) {
+                continue;
+            }
             $fqdn = "{$sub}.{$domain}";
             $this->queryAndCollect($fqdn, DNS_TXT, 'TXT', $domain, $records, $seen);
         }
@@ -289,7 +298,7 @@ class DnsService
         string $baseDomain, array &$records, array &$seen
     ): void {
         try {
-            $raw = @dns_get_record($fqdn, $dnsConst);
+            $raw = @dns_get_record(self::absolute($fqdn), $dnsConst);
             if ($raw === false || empty($raw)) {
                 return;
             }
@@ -310,7 +319,7 @@ class DnsService
     private function queryAllFallback(string $fqdn, string $baseDomain, array &$records, array &$seen): void
     {
         try {
-            $all = @dns_get_record($fqdn, DNS_ALL);
+            $all = @dns_get_record(self::absolute($fqdn), DNS_ALL);
             if (!is_array($all) || empty($all)) {
                 return;
             }
@@ -345,14 +354,18 @@ class DnsService
     /**
      * Query the record types used for subdomains and return the answers, without merging them.
      */
-    private function queryHost(string $fqdn, string $domain): array
+    private function queryHost(string $fqdn, string $domain, bool $txtAndCnameOnly = false): array
     {
         $hostRecords = [];
         $hostSeen = [];
-        $this->queryAndCollect($fqdn, DNS_A, 'A', $domain, $hostRecords, $hostSeen);
-        $this->queryAndCollect($fqdn, DNS_AAAA, 'AAAA', $domain, $hostRecords, $hostSeen);
+        if (!$txtAndCnameOnly) {
+            $this->queryAndCollect($fqdn, DNS_A, 'A', $domain, $hostRecords, $hostSeen);
+            $this->queryAndCollect($fqdn, DNS_AAAA, 'AAAA', $domain, $hostRecords, $hostSeen);
+        }
         $this->queryAndCollect($fqdn, DNS_CNAME, 'CNAME', $domain, $hostRecords, $hostSeen);
-        $this->queryAndCollect($fqdn, DNS_MX, 'MX', $domain, $hostRecords, $hostSeen);
+        if (!$txtAndCnameOnly) {
+            $this->queryAndCollect($fqdn, DNS_MX, 'MX', $domain, $hostRecords, $hostSeen);
+        }
         $this->queryAndCollect($fqdn, DNS_TXT, 'TXT', $domain, $hostRecords, $hostSeen);
         return $hostRecords;
     }
@@ -363,10 +376,12 @@ class DnsService
      */
     private function collectHost(string $fqdn, string $domain, array &$records, array &$seen, ?string $wildcard = null): bool
     {
-        $hostRecords = $this->queryHost($fqdn, $domain);
-
         // A "*" host (from a zone import) is the wildcard itself, never dropped
         $label = substr($fqdn, 0, -strlen($domain) - 1);
+
+        // Underscore names (_dmarc, _mta-sts, _acme-challenge) carry TXT or a CNAME, not A/AAAA/MX.
+        // With a wildcard every type is asked, so the answers still compare with the wildcard's
+        $hostRecords = $this->queryHost($fqdn, $domain, $wildcard === null && str_starts_with($label, '_'));
         if ($wildcard !== null && !str_contains($label, '*') && !empty($hostRecords)
             && $this->answerSignature($hostRecords, $label, $domain) === $wildcard) {
             return false;
@@ -433,11 +448,12 @@ class DnsService
      */
     private function subdomainExists(string $fqdn): bool
     {
-        if (@checkdnsrr($fqdn, 'A'))     return true;
-        if (@checkdnsrr($fqdn, 'AAAA'))  return true;
-        if (@checkdnsrr($fqdn, 'CNAME')) return true;
-        $ip = @gethostbyname($fqdn);
-        return ($ip !== $fqdn);
+        $name = self::absolute($fqdn);
+        if (@checkdnsrr($name, 'A'))     return true;
+        if (@checkdnsrr($name, 'AAAA'))  return true;
+        if (@checkdnsrr($name, 'CNAME')) return true;
+        $ip = @gethostbyname($name);
+        return ($ip !== $name);
     }
 
     /**
@@ -447,7 +463,7 @@ class DnsService
     {
         $ips = ['ipv4' => [], 'ipv6' => []];
 
-        $a = @dns_get_record($hostname, DNS_A);
+        $a = @dns_get_record(self::absolute($hostname), DNS_A);
         if (is_array($a)) {
             foreach ($a as $r) {
                 if (!empty($r['ip'])) {
@@ -456,7 +472,7 @@ class DnsService
             }
         }
 
-        $aaaa = @dns_get_record($hostname, DNS_AAAA);
+        $aaaa = @dns_get_record(self::absolute($hostname), DNS_AAAA);
         if (is_array($aaaa)) {
             foreach ($aaaa as $r) {
                 if (!empty($r['ipv6'])) {
@@ -473,7 +489,7 @@ class DnsService
     // ========================================================================
 
     /**
-     * Query root domain for all record types + DNS_ALL fallback + gethostbynamel fallback.
+     * Query root domain for all record types, with DNS_ALL and gethostbynamel as fallbacks.
      *
      * @return array{0: array, 1: array} [$records, $seen]
      */
@@ -489,10 +505,13 @@ class DnsService
             $this->queryAndCollect($domain, $dnsConst, $typeName, $domain, $records, $seen);
         }
 
-        $this->queryAllFallback($domain, $domain, $records, $seen);
+        // DNS_ALL repeats every typed query above, so it only runs when they all came back empty
+        if (array_sum(array_map('count', $records)) === 0) {
+            $this->queryAllFallback($domain, $domain, $records, $seen);
+        }
 
         if (empty($records['A'])) {
-            $ips = @gethostbynamel($domain);
+            $ips = @gethostbynamel(self::absolute($domain));
             if (is_array($ips)) {
                 foreach ($ips as $ip) {
                     $this->addIfNew('A', [
@@ -1051,7 +1070,7 @@ class DnsService
      */
     private function parseRecord(string $type, array $entry, string $domain): ?array
     {
-        $host = $entry['host'] ?? $domain;
+        $host = rtrim($entry['host'] ?? $domain, '.');
         $hostLower = strtolower($host);
         $domainLower = strtolower($domain);
 
@@ -1271,6 +1290,11 @@ class DnsService
     // IP DETAILS (PTR, ASN, GEO)
     // ========================================================================
 
+    // Hosting and CDN addresses repeat across domains, so PTR answers are kept for the run
+    private static array $ptrCache = [];
+    // After one failed ip-api.com call the rest of the run skips it instead of waiting on each timeout
+    private static bool $ipApiUnavailable = false;
+
     /**
      * Batch-lookup IP details (ASN, PTR, org, country) for a list of IPs.
      * PTR via gethostbyaddr(); ASN/geo via ip-api.com batch.
@@ -1285,10 +1309,15 @@ class DnsService
         $result = [];
 
         foreach ($unique as $ip) {
-            $ptr = @gethostbyaddr($ip);
-            $result[$ip] = [
-                'reverse' => ($ptr !== false && $ptr !== $ip) ? $ptr : '',
-            ];
+            if (!array_key_exists($ip, self::$ptrCache)) {
+                $ptr = @gethostbyaddr($ip);
+                self::$ptrCache[$ip] = ($ptr !== false && $ptr !== $ip) ? $ptr : '';
+            }
+            $result[$ip] = ['reverse' => self::$ptrCache[$ip]];
+        }
+
+        if (self::$ipApiUnavailable) {
+            return $result;
         }
 
         $requestBody = [];
@@ -1319,7 +1348,8 @@ class DnsService
                 }
             }
         } else {
-            $this->logger->warning('ip-api.com batch request failed');
+            self::$ipApiUnavailable = true;
+            $this->logger->warning('ip-api.com batch request failed, skipping IP details for the rest of this run');
         }
 
         return $result;

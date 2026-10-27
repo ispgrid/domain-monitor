@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-27
+
+### Added
+- **Choose which alerts a group gets** - Each notification group now has "Send these alerts" switches: expiry reminders and expired alerts, status changes and renewals, DNS record changes, and SSL certificate alerts. All are on by default. With a switch off, the checks still run and record changes, but no channel or bell alert goes out for that group's domains (Hosteroid/domain-monitor#88)
+- **Watching to acquire** - When adding or editing a domain (also in Bulk Add), choose "Watching to acquire it" instead of "I own this domain". Watched domains get no expiry reminders and no "expired" alerts, only the steps that matter to a buyer: redemption, pending delete, available and registered. They show a "Watching" label in the domain list (Hosteroid/domain-monitor#95)
+- Group export and import (JSON) keep the alert switches
+
+### Changed
+- **Faster DNS checks** - Underscore names such as `_dmarc` are only asked for TXT and CNAME records, the DNS_ALL fallback only runs when every typed lookup came back empty, `_dmarc` and `_mta-sts` are no longer looked up twice, and reverse DNS and IP details are cached for the run. A run that cannot reach ip-api.com stops asking it after the first failure instead of waiting on every domain (Hosteroid/domain-monitor#98)
+
+### Fixed
+- **Reminders for manual expiry dates** - Expiry reminders and "expired" alerts now use the date set in Edit Domain → Manual Expiration Date when WHOIS/RDAP gives no date (e.g. .nl), and when the lookup fails on a check. Before, these domains could show "Expiring soon" but never got a reminder. Such alerts say the date is the saved one, so you can confirm it with your registrar
+- Domains retried after a rate limit no longer get a duplicate bell alert for the same reminder
+- DNS lookups use absolute names, so a server whose resolver has a search domain with a wildcard record no longer shows made-up records for names that do not exist (Hosteroid/domain-monitor#98)
+
+Migrations: 041_add_notification_choices_v1.5.0.sql
+
 ## [1.4.1] - 2026-10-27
 
 ### Fixed

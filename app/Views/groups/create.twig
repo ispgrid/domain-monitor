@@ -51,6 +51,21 @@
                     </p>
                 </div>
 
+                {# Alerts sent to this group #}
+                <div class="bg-gray-50 dark:bg-slate-900 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
+                    <span class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Send these alerts</span>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 mb-3">Checks still run and record changes; unticked alerts are just not sent for this group's domains</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {% for type, label in alertTypes %}
+                            <label class="flex items-center cursor-pointer">
+                                <input type="checkbox" name="notify_{{ type }}" checked
+                                       class="w-4 h-4 text-primary border-gray-300 dark:border-slate-600 rounded focus:ring-primary cursor-pointer">
+                                <span class="ml-2 text-sm text-gray-900 dark:text-white">{{ label }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
                 {# Action Buttons #}
                 <div class="flex flex-col sm:flex-row gap-3 pt-3">
                     <button type="submit"

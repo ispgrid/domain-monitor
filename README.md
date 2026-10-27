@@ -17,7 +17,7 @@ A modern PHP MVC application for monitoring domain expiration dates and sending 
 - 🔍 **Smart WHOIS/RDAP Lookup** - Automatically fetches expiration dates and registrar information
 - 🗂️ **TLD Registry System** - Built-in support for 1,400+ TLDs with IANA integration
 - 🔔 **Multi-Channel Notifications** - Email, Telegram, Discord, Slack, Mattermost, Pushover, and Webhook support
-- 👥 **Notification Groups** - Organize channels and assign domains flexibly
+- 👥 **Notification Groups** - Organize channels and assign domains flexibly, and choose which alerts each group gets (expiry, status, DNS, SSL)
 - ⚡ **Real-time Dashboard** - Overview of all domains and their status
 - 📊 **Notification Logs** - Complete history of all sent notifications
 - 🤖 **Automated Monitoring** - Cron-based checks with configurable intervals
@@ -440,7 +440,8 @@ Before setting up the cron job, test your notification channels through the web 
 1. Navigate to **Domains** → **Add Domain**
 2. Enter the domain name (e.g., `example.com`)
 3. Optionally assign to a notification group
-4. Click **Add Domain**
+4. Pick why you are monitoring it: **I own this domain**, or **Watching to acquire it** (no expiry reminders or "expired" alerts, only redemption, pending delete, available and registered)
+5. Click **Add Domain**
 
 The system will automatically fetch WHOIS information.
 
@@ -448,9 +449,10 @@ The system will automatically fetch WHOIS information.
 
 1. Navigate to **Notification Groups** → **Create Group**
 2. Enter a name and description
-3. Click **Create Group**
-4. Add notification channels (Email, Telegram, Discord, Slack)
-5. Assign domains to the group
+3. Under **Send these alerts**, untick any alerts this group should not get. The checks still run and record changes
+4. Click **Create Group**
+5. Add notification channels (Email, Telegram, Discord, Slack)
+6. Assign domains to the group
 
 ### Monitoring
 

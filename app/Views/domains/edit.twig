@@ -107,6 +107,23 @@
                     </p>
                 </div>
 
+                <!-- Purpose -->
+                <div>
+                    <label for="purpose" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">
+                        Why are you monitoring it?
+                    </label>
+                    <select id="purpose"
+                            name="purpose"
+                            class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors text-sm">
+                        {% for value, label in purposes %}
+                            <option value="{{ value }}" {{ domain.purpose|default('own') == value ? 'selected' : '' }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-slate-400">
+                        Watched domains get no expiry reminders or "expired" alerts, only redemption, pending delete, available and registered
+                    </p>
+                </div>
+
                 <!-- Manual Expiration Date -->
                 <div>
                     <label for="manual_expiration_date" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">

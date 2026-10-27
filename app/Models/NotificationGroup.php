@@ -8,6 +8,46 @@ class NotificationGroup extends Model
 {
     protected static string $table = 'notification_groups';
 
+    // Alert kinds a group can switch off, keyed by their notify_* column
+    public const ALERT_TYPES = [
+        'expiry' => 'Expiry reminders and expired alerts',
+        'status' => 'Status changes and renewals',
+        'dns' => 'DNS record changes',
+        'ssl' => 'SSL certificate alerts',
+    ];
+
+    private static array $alertCache = [];
+
+    /**
+     * Whether a domain's group wants this kind of alert. Domains with no group keep their in-app alerts
+     */
+    public function allowsAlert($groupId, string $type): bool
+    {
+        $groupId = (int)$groupId;
+        if (!$groupId || !isset(self::ALERT_TYPES[$type])) {
+            return true;
+        }
+
+        if (!array_key_exists($groupId, self::$alertCache)) {
+            self::$alertCache[$groupId] = $this->find($groupId);
+        }
+
+        $group = self::$alertCache[$groupId];
+        return !$group || (int)($group['notify_' . $type] ?? 1) === 1;
+    }
+
+    /**
+     * notify_* values from a submitted group form
+     */
+    public static function alertSettingsFromPost(array $post): array
+    {
+        $settings = [];
+        foreach (array_keys(self::ALERT_TYPES) as $type) {
+            $settings['notify_' . $type] = isset($post['notify_' . $type]) ? 1 : 0;
+        }
+        return $settings;
+    }
+
     /**
      * Get User model instance
      */

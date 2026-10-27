@@ -139,6 +139,10 @@ CREATE TABLE IF NOT EXISTS notification_groups (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     description TEXT,
+    notify_expiry TINYINT(1) NOT NULL DEFAULT 1,
+    notify_status TINYINT(1) NOT NULL DEFAULT 1,
+    notify_dns TINYINT(1) NOT NULL DEFAULT 1,
+    notify_ssl TINYINT(1) NOT NULL DEFAULT 1,
     user_id INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -166,6 +170,7 @@ CREATE TABLE IF NOT EXISTS domains (
     is_active BOOLEAN DEFAULT TRUE,
     dns_monitoring_enabled TINYINT(1) NOT NULL DEFAULT 1,
     ssl_monitoring_enabled TINYINT(1) NOT NULL DEFAULT 0,
+    purpose VARCHAR(16) NOT NULL DEFAULT 'own',
     user_id INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -525,7 +530,7 @@ INSERT INTO settings (setting_key, setting_value, `type`, `description`) VALUES
 ('app_name', 'Domain Monitor', 'string', 'Application name'),
 ('app_url', 'http://localhost:8000', 'string', 'Application URL'),
 ('app_timezone', 'UTC', 'string', 'Application timezone'),
-('app_version', '1.4.1', 'string', 'Application version number'),
+('app_version', '1.5.0','string', 'Application version number'),
 
 -- Email settings
 ('mail_host', 'smtp.mailtrap.io', 'string', 'SMTP server host'),

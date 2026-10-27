@@ -188,6 +188,11 @@ foreach ($domains as $domain) {
                 $stats['status_changes']++;
             }
 
+            if (!$groupModel->allowsAlert($domain['notification_group_id'] ?? null, 'ssl')) {
+                logMessage("  -> SSL alerts are off for this domain's group");
+                continue;
+            }
+
             sendExternalSslNotifications(
                 $domain,
                 $endpointLabel,

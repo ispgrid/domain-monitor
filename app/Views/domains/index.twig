@@ -293,6 +293,12 @@
                                     <div class="ml-4">
                                         <a href="/domains/{{ domain.id }}" class="text-sm font-semibold text-gray-900 dark:text-white hover:text-primary">{{ domain.domain_name }}</a>
                                         <div class="flex items-center gap-1.5 mt-1">
+                                            {% if domain.purpose|default('own') == 'acquire' %}
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-500/30" title="Watching to acquire: no expiry alerts">
+                                                    <i class="fas fa-binoculars mr-1" style="font-size: 9px;"></i>
+                                                    Watching
+                                                </span>
+                                            {% endif %}
                                             {% set domainTags = domain.tags ? domain.tags|split(',') : [] %}
                                             {% set tagColors = domain.tag_colors ? domain.tag_colors|split('|') : [] %}
                                             {% for tag in domainTags %}

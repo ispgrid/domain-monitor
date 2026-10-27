@@ -92,6 +92,9 @@ class NotificationService
     {
         $daysLeft = $this->calculateDaysLeft($domain['expiration_date']);
         $message = $this->formatExpirationMessage($domain, $daysLeft);
+        if (!empty($domain['expiry_note'])) {
+            $message .= "\n\n" . $domain['expiry_note'];
+        }
 
         $results = [];
 
@@ -295,14 +298,14 @@ class NotificationService
     /**
      * Create a domain expiring notification (in-app)
      */
-    public function notifyDomainExpiring(int $userId, string $domainName, int $daysLeft, int $domainId): void
+    public function notifyDomainExpiring(int $userId, string $domainName, int $daysLeft, int $domainId, bool $savedDate = false): void
     {
         $notificationModel = new \App\Models\Notification();
         $notificationModel->createNotification(
             $userId,
             'domain_expiring',
             'Domain Expiring Soon',
-            "{$domainName} expires in {$daysLeft} day" . ($daysLeft > 1 ? 's' : ''),
+            "{$domainName} expires in {$daysLeft} day" . ($daysLeft > 1 ? 's' : '') . ($savedDate ? ' (saved date, the registry gave none)' : ''),
             $domainId
         );
     }
@@ -310,14 +313,14 @@ class NotificationService
     /**
      * Create a domain expired notification (in-app)
      */
-    public function notifyDomainExpired(int $userId, string $domainName, int $domainId): void
+    public function notifyDomainExpired(int $userId, string $domainName, int $domainId, bool $savedDate = false): void
     {
         $notificationModel = new \App\Models\Notification();
         $notificationModel->createNotification(
             $userId,
             'domain_expired',
             'Domain Expired',
-            "{$domainName} has expired - renew immediately",
+            "{$domainName} has expired - renew immediately" . ($savedDate ? ' (saved date, the registry gave none)' : ''),
             $domainId
         );
     }

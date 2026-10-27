@@ -71,6 +71,7 @@ class InstallerController extends Controller
             '038_add_passkeys_v1.3.0.sql',
             '039_add_logs_v1.4.0.sql',
             '040_update_app_version_v1.4.1.sql',
+            '041_add_notification_choices_v1.5.0.sql',
         ];
 
         try {
@@ -228,6 +229,7 @@ class InstallerController extends Controller
                     '038_add_passkeys_v1.3.0.sql',
                     '039_add_logs_v1.4.0.sql',
                     '040_update_app_version_v1.4.1.sql',
+                    '041_add_notification_choices_v1.5.0.sql',
                 ];
             }
 
@@ -468,6 +470,7 @@ class InstallerController extends Controller
                     '038_add_passkeys_v1.3.0.sql',
                     '039_add_logs_v1.4.0.sql',
                     '040_update_app_version_v1.4.1.sql',
+                    '041_add_notification_choices_v1.5.0.sql',
                 ];
 
                 $stmt = $pdo->prepare("INSERT INTO migrations (migration) VALUES (?) ON DUPLICATE KEY UPDATE migration=migration");
@@ -709,7 +712,9 @@ class InstallerController extends Controller
                     
                     // Fallback: detect "to" version from which migrations were run
                     if ($toVersion === $fromVersion) {
-                        if (in_array('040_update_app_version_v1.4.1.sql', $executed)) {
+                        if (in_array('041_add_notification_choices_v1.5.0.sql', $executed)) {
+                            $toVersion = '1.5.0';
+                        } elseif (in_array('040_update_app_version_v1.4.1.sql', $executed)) {
                             $toVersion = '1.4.1';
                         } elseif (in_array('039_add_logs_v1.4.0.sql', $executed)) {
                             $toVersion = '1.4.0';

@@ -8,6 +8,23 @@ class Domain extends Model
 {
     protected static string $table = 'domains';
 
+    // Why a domain is monitored. Watched domains skip expiry reminders and the "expired" alert
+    public const PURPOSES = [
+        'own' => 'I own this domain',
+        'acquire' => 'Watching to acquire it',
+    ];
+
+    public static function purposeFromPost(array $post): string
+    {
+        $purpose = $post['purpose'] ?? 'own';
+        return isset(self::PURPOSES[$purpose]) ? $purpose : 'own';
+    }
+
+    public static function isWatched(array $domain): bool
+    {
+        return ($domain['purpose'] ?? 'own') === 'acquire';
+    }
+
     /**
      * Get User model instance
      */

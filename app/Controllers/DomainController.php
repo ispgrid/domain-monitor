@@ -430,6 +430,7 @@ class DomainController extends Controller
         $this->view('domains/create', [
             'groups' => $groups,
             'availableTags' => $availableTags,
+            'purposes' => \App\Models\Domain::PURPOSES,
             'title' => 'Add Domain'
         ]);
     }
@@ -451,6 +452,7 @@ class DomainController extends Controller
         $isActive = isset($_POST['is_active']) ? 1 : 0;
         $dnsMonitoringEnabled = isset($_POST['dns_monitoring_enabled']) ? 1 : 0;
         $sslMonitoringEnabled = isset($_POST['ssl_monitoring_enabled']) ? 1 : 0;
+        $purpose = \App\Models\Domain::purposeFromPost($_POST);
 
         // Validate root domain (not a subdomain, respects multi-level TLDs)
         $domainCheck = \App\Helpers\InputValidator::validateRootDomain($domainName);
@@ -523,6 +525,7 @@ class DomainController extends Controller
             'is_active' => $isActive,
             'dns_monitoring_enabled' => $dnsMonitoringEnabled,
             'ssl_monitoring_enabled' => $sslMonitoringEnabled,
+            'purpose' => $purpose,
             'user_id' => $userId
         ]);
 
@@ -602,6 +605,7 @@ class DomainController extends Controller
             'groups' => $groups,
             'availableTags' => $availableTags,
             'referrer' => $referrer,
+            'purposes' => \App\Models\Domain::PURPOSES,
             'title' => 'Edit Domain'
         ]);
     }
@@ -631,6 +635,7 @@ class DomainController extends Controller
         $isActive = isset($_POST['is_active']) ? 1 : 0;
         $dnsMonitoringEnabled = isset($_POST['dns_monitoring_enabled']) ? 1 : 0;
         $sslMonitoringEnabled = isset($_POST['ssl_monitoring_enabled']) ? 1 : 0;
+        $purpose = \App\Models\Domain::purposeFromPost($_POST);
         $tagsInput = trim($_POST['tags'] ?? '');
         $manualExpirationDate = !empty($_POST['manual_expiration_date']) ? $_POST['manual_expiration_date'] : null;
         
@@ -667,6 +672,7 @@ class DomainController extends Controller
             'is_active' => $isActive,
             'dns_monitoring_enabled' => $dnsMonitoringEnabled,
             'ssl_monitoring_enabled' => $sslMonitoringEnabled,
+            'purpose' => $purpose,
             'expiration_date' => $manualExpirationDate
         ]);
 
@@ -1360,6 +1366,7 @@ class DomainController extends Controller
             $this->view('domains/bulk-add', [
                 'groups' => $groups,
                 'availableTags' => $availableTags,
+                'purposes' => \App\Models\Domain::PURPOSES,
                 'title' => 'Bulk Add Domains'
             ]);
             return;
@@ -1371,6 +1378,7 @@ class DomainController extends Controller
         // POST - Process bulk add
         $domainsText = trim($_POST['domains'] ?? '');
         $groupId = !empty($_POST['notification_group_id']) ? (int)$_POST['notification_group_id'] : null;
+        $purpose = \App\Models\Domain::purposeFromPost($_POST);
         $tagsInput = trim($_POST['tags'] ?? '');
         $userId = \Core\Auth::id();
 
@@ -1470,6 +1478,7 @@ class DomainController extends Controller
                     'status' => $status,
                     'whois_data' => json_encode($whoisData),
                     'is_active' => 1,
+                    'purpose' => $purpose,
                     'user_id' => \Core\Auth::id()
                 ]);
 

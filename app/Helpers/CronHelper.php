@@ -260,8 +260,10 @@ class CronHelper
      */
     public static function hostnameResolves(string $hostname): bool
     {
-        return @checkdnsrr($hostname, 'SOA')
-            || @checkdnsrr($hostname, 'A')
-            || @checkdnsrr($hostname, 'AAAA');
+        // Trailing dot so the resolver's search suffixes are never tried
+        $name = rtrim($hostname, '.') . '.';
+        return @checkdnsrr($name, 'SOA')
+            || @checkdnsrr($name, 'A')
+            || @checkdnsrr($name, 'AAAA');
     }
 }
