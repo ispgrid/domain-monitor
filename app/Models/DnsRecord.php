@@ -83,6 +83,7 @@ class DnsRecord extends Model
      * Updates existing records, inserts new ones.
      * Only auto-removes stale records whose source is 'discovered' — manual and imported records are preserved,
      * except SOA, which is replaced by the SOA from the lookup.
+     * Added and removed records go to the DNS history, except on the domain's first lookup.
      *
      * @return array{added: int, updated: int, removed: int}
      */
@@ -91,6 +92,12 @@ class DnsRecord extends Model
         $stats = ['added' => 0, 'updated' => 0, 'removed' => 0];
         $now = date('Y-m-d H:i:s');
         $seenIds = [];
+        $added = [];
+
+        // The first lookup of a domain is the baseline, not a list of changes
+        $countStmt = $this->db->prepare("SELECT COUNT(*) FROM dns_records WHERE domain_id = ?");
+        $countStmt->execute([$domainId]);
+        $isBaseline = (int)$countStmt->fetchColumn() === 0;
 
         foreach ($groupedRecords as $type => $records) {
             foreach ($records as $record) {
@@ -117,31 +124,34 @@ class DnsRecord extends Model
                     $stmt->execute([$domainId, $type, $host, $value, $ttl, $priority, $isCloudflare, $rawData, $source, $now, $now, $now, $now]);
                     $seenIds[] = (int)$this->db->lastInsertId();
                     $stats['added']++;
+                    $added[] = ['record_type' => $type, 'host' => $host, 'value' => $value, 'priority' => $priority, 'ttl' => $ttl];
                 }
             }
         }
 
-        // Only auto-remove stale discovered records — manual/imported records are never auto-deleted
+        // Only auto-remove stale discovered records — manual/imported records are never auto-deleted.
+        // A zone has one SOA: when the lookup returned it, it replaces any other SOA row, imported ones too.
+        $staleWhere = "domain_id = ? AND (source = 'discovered'" . (!empty($groupedRecords['SOA']) ? " OR record_type = 'SOA'" : '') . ")";
+        $params = [$domainId];
         if (!empty($seenIds)) {
-            $placeholders = implode(',', array_fill(0, count($seenIds), '?'));
-            $deleteStmt = $this->db->prepare(
-                "DELETE FROM dns_records WHERE domain_id = ? AND source = 'discovered' AND id NOT IN ({$placeholders})"
-            );
-            $deleteStmt->execute(array_merge([$domainId], $seenIds));
-            $stats['removed'] = $deleteStmt->rowCount();
+            $staleWhere .= ' AND id NOT IN (' . implode(',', array_fill(0, count($seenIds), '?')) . ')';
+            $params = array_merge($params, $seenIds);
+        }
+        $staleStmt = $this->db->prepare("SELECT id, record_type, host, value, priority, ttl FROM dns_records WHERE {$staleWhere}");
+        $staleStmt->execute($params);
+        $removed = $staleStmt->fetchAll();
 
-            // A zone has one SOA: when the lookup returned it, it replaces any other SOA row, imported ones too
-            if (!empty($groupedRecords['SOA'])) {
-                $soaStmt = $this->db->prepare(
-                    "DELETE FROM dns_records WHERE domain_id = ? AND record_type = 'SOA' AND id NOT IN ({$placeholders})"
-                );
-                $soaStmt->execute(array_merge([$domainId], $seenIds));
-                $stats['removed'] += $soaStmt->rowCount();
-            }
-        } else {
-            $deleteStmt = $this->db->prepare("DELETE FROM dns_records WHERE domain_id = ? AND source = 'discovered'");
-            $deleteStmt->execute([$domainId]);
+        if (!empty($removed)) {
+            $ids = array_column($removed, 'id');
+            $deleteStmt = $this->db->prepare(
+                'DELETE FROM dns_records WHERE domain_id = ? AND id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')'
+            );
+            $deleteStmt->execute(array_merge([$domainId], $ids));
             $stats['removed'] = $deleteStmt->rowCount();
+        }
+
+        if (!$isBaseline) {
+            (new DnsRecordChange())->logChanges($domainId, $added, $removed, $now);
         }
 
         return $stats;

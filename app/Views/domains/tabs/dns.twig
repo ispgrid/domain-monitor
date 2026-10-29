@@ -18,9 +18,30 @@
     </div>
 </div>
 {% else %}
+{# Records / History / provider zone switch #}
+{% set dnsViewToggle %}
+        <div class="inline-flex rounded-lg border border-gray-300 dark:border-slate-600 overflow-hidden text-xs font-medium">
+            <button type="button" id="dnsViewRecordsBtn" onclick="showDnsView('records')" class="px-3 py-1.5 bg-primary text-white">
+                <i class="fas fa-list mr-1" style="font-size: 10px;"></i>Records
+            </button>
+            <button type="button" id="dnsViewHistoryBtn" onclick="showDnsView('history')" class="px-3 py-1.5 border-l border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700">
+                <i class="fas fa-history mr-1" style="font-size: 10px;"></i>History{% if dnsHistory|default([])|length > 0 %} ({{ dnsHistory|length }}){% endif %}
+            </button>
+            {% if providerZone|default(null) %}
+            {% set zoneMismatches = providerZone.comparison.mismatches|default(0) %}
+            <button type="button" id="dnsViewProviderBtn" onclick="showDnsView('provider')" class="px-3 py-1.5 border-l border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700">
+                <i class="fas fa-cloud mr-1" style="font-size: 10px;"></i>{{ providerZone.provider == 'cloudflare' ? 'Cloudflare' : providerZone.provider|capitalize }}
+                {% if zoneMismatches > 0 %}<span class="ml-1 px-1.5 rounded bg-red-500 text-white">{{ zoneMismatches }}</span>{% endif %}
+            </button>
+            {% endif %}
+        </div>
+{% endset %}
 {% if totalDnsRecords == 0 %}
+{% if dnsHistory|default([]) is not empty or providerZone|default(null) %}
+<div class="mb-3">{{ dnsViewToggle }}</div>
+{% endif %}
 <!-- No DNS Data Yet -->
-<div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-8 text-center">
+<div id="dnsRecordsView" class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-8 text-center">
     <i class="fas fa-network-wired text-gray-300 dark:text-slate-600 mb-3" style="font-size: 36px;"></i>
     <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-1">No DNS Records Yet</h3>
     <p class="text-xs text-gray-500 dark:text-slate-400 mb-4">Run a quick scan, import a zone file, or add records manually.</p>
@@ -49,10 +70,17 @@
 <!-- Action Bar -->
 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
     <div class="flex items-center gap-3 flex-wrap">
+        {{ dnsViewToggle }}
         <p class="text-xs text-gray-600 dark:text-slate-400">
             <i class="far fa-clock mr-1"></i>
             Last checked: {{ domain.dns_last_checked ? domain.dns_last_checked|date('M d, Y H:i') : 'Never' }}
         </p>
+        {% if cfZoneHostCount|default(0) > 0 %}
+        <p class="text-xs text-gray-600 dark:text-slate-400" title="Each DNS check also looks up these names in public DNS">
+            <i class="fas fa-cloud text-orange-500 dark:text-orange-400 mr-1"></i>
+            Also checks the {{ cfZoneHostCount }} {{ cfZoneHostCount == 1 ? 'name' : 'names' }} in Cloudflare zone {{ providerZone.zone_name }}
+        </p>
+        {% endif %}
         {% if dnsHasCloudflare|default(false) %}
         <span class="inline-flex items-center px-2 py-1 bg-orange-100 dark:bg-orange-500/10 text-orange-800 dark:text-orange-400 text-xs font-semibold rounded border border-orange-200 dark:border-orange-800">
             <i class="fas fa-cloud mr-1" style="font-size: 10px;"></i>
@@ -122,7 +150,7 @@
 </div>
 
 <!-- DNS Records by Type -->
-<div class="space-y-3">
+<div class="space-y-3" id="dnsRecordsView">
 
     {# ===== SOA Record (Start of Authority) — shown first ===== #}
     {% if dnsRecords['SOA'] is defined and dnsRecords['SOA']|length > 0 %}
@@ -228,11 +256,18 @@
                                 <span class="ml-1 px-1 py-0.5 bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 text-xs rounded font-medium" style="font-size: 9px;">manual</span>
                             {% elseif record.source|default('discovered') == 'imported' %}
                                 <span class="ml-1 px-1 py-0.5 bg-purple-100 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 text-xs rounded font-medium" style="font-size: 9px;">imported</span>
-                            {% endif %}
+                            {% endif %}{% if cfRecordFlags['A|' ~ record.host|lower] is defined %}<span class="ml-1 px-1 py-0.5 bg-orange-100 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 text-xs rounded font-medium" style="font-size: 9px;" title="In your Cloudflare zone">cloudflare</span>{% endif %}
                         </td>
                         <td class="px-4 py-2 text-xs">
                             <span class="font-mono text-gray-900 dark:text-white">{{ record.value }}</span>
-                            {% if record.is_cloudflare %}
+                            {% set cf = cfRecordFlags['A|' ~ record.host|lower]|default(null) %}
+                            {% if cf %}
+                                {% if cf.proxied %}
+                                <span class="ml-1.5 px-1 py-0.5 bg-orange-500 text-white rounded font-medium" style="font-size: 9px;" title="Proxied through Cloudflare: public DNS answers with Cloudflare addresses"><i class="fas fa-cloud mr-0.5"></i>Proxied</span>
+                                {% else %}
+                                <span class="ml-1.5 px-1 py-0.5 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 rounded font-medium" style="font-size: 9px;" title="DNS only in Cloudflare"><i class="fas fa-cloud mr-0.5 text-gray-400"></i>DNS only</span>
+                                {% endif %}
+                            {% elseif record.is_cloudflare %}
                                 <i class="fas fa-cloud text-orange-500 dark:text-orange-400 ml-1.5" style="font-size: 10px;" title="Cloudflare"></i>
                             {% endif %}
                         </td>
@@ -312,11 +347,18 @@
                                 <span class="ml-1 px-1 py-0.5 bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 text-xs rounded font-medium" style="font-size: 9px;">manual</span>
                             {% elseif record.source|default('discovered') == 'imported' %}
                                 <span class="ml-1 px-1 py-0.5 bg-purple-100 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 text-xs rounded font-medium" style="font-size: 9px;">imported</span>
-                            {% endif %}
+                            {% endif %}{% if cfRecordFlags['AAAA|' ~ record.host|lower] is defined %}<span class="ml-1 px-1 py-0.5 bg-orange-100 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 text-xs rounded font-medium" style="font-size: 9px;" title="In your Cloudflare zone">cloudflare</span>{% endif %}
                         </td>
                         <td class="px-4 py-2 text-xs">
                             <span class="font-mono text-gray-900 dark:text-white">{{ record.value }}</span>
-                            {% if record.is_cloudflare %}
+                            {% set cf = cfRecordFlags['AAAA|' ~ record.host|lower]|default(null) %}
+                            {% if cf %}
+                                {% if cf.proxied %}
+                                <span class="ml-1.5 px-1 py-0.5 bg-orange-500 text-white rounded font-medium" style="font-size: 9px;" title="Proxied through Cloudflare: public DNS answers with Cloudflare addresses"><i class="fas fa-cloud mr-0.5"></i>Proxied</span>
+                                {% else %}
+                                <span class="ml-1.5 px-1 py-0.5 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 rounded font-medium" style="font-size: 9px;" title="DNS only in Cloudflare"><i class="fas fa-cloud mr-0.5 text-gray-400"></i>DNS only</span>
+                                {% endif %}
+                            {% elseif record.is_cloudflare %}
                                 <i class="fas fa-cloud text-orange-500 dark:text-orange-400 ml-1.5" style="font-size: 10px;" title="Cloudflare"></i>
                             {% endif %}
                         </td>
@@ -387,7 +429,7 @@
                             <span class="ml-1 px-1 py-0.5 bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 text-xs rounded font-medium" style="font-size: 9px;">manual</span>
                         {% elseif record.source|default('discovered') == 'imported' %}
                             <span class="ml-1 px-1 py-0.5 bg-purple-100 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 text-xs rounded font-medium" style="font-size: 9px;">imported</span>
-                        {% endif %}</td>
+                        {% endif %}{% if cfRecordFlags['CNAME|' ~ record.host|lower] is defined %}<span class="ml-1 px-1 py-0.5 bg-orange-100 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 text-xs rounded font-medium" style="font-size: 9px;" title="In your Cloudflare zone">cloudflare</span>{% endif %}</td>
                         <td class="px-4 py-2 text-xs font-mono text-blue-600 dark:text-blue-400">{{ record.value }}</td>
                         <td class="px-4 py-2 text-xs text-gray-600 dark:text-slate-400">{{ record.ttl }}s</td>
                         <td class="w-8 px-2 py-2">
@@ -442,7 +484,7 @@
                                 <span class="ml-1 px-1 py-0.5 bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 text-xs rounded font-medium" style="font-size: 9px;">manual</span>
                             {% elseif record.source|default('discovered') == 'imported' %}
                                 <span class="ml-1 px-1 py-0.5 bg-purple-100 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 text-xs rounded font-medium" style="font-size: 9px;">imported</span>
-                            {% endif %}
+                            {% endif %}{% if cfRecordFlags['MX|' ~ record.host|lower] is defined %}<span class="ml-1 px-1 py-0.5 bg-orange-100 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 text-xs rounded font-medium" style="font-size: 9px;" title="In your Cloudflare zone">cloudflare</span>{% endif %}
                         </td>
                         <td class="px-4 py-2">
                             <span class="inline-flex items-center justify-center w-6 h-6 bg-green-100 dark:bg-green-500/10 text-green-800 dark:text-green-400 font-bold rounded-full text-xs">{{ record.priority }}</span>
@@ -517,7 +559,7 @@
                                 <span class="ml-1 px-1 py-0.5 bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 text-xs rounded font-medium" style="font-size: 9px;">manual</span>
                             {% elseif record.source|default('discovered') == 'imported' %}
                                 <span class="ml-1 px-1 py-0.5 bg-purple-100 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 text-xs rounded font-medium" style="font-size: 9px;">imported</span>
-                            {% endif %}
+                            {% endif %}{% if cfRecordFlags['TXT|' ~ record.host|lower] is defined %}<span class="ml-1 px-1 py-0.5 bg-orange-100 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 text-xs rounded font-medium" style="font-size: 9px;" title="In your Cloudflare zone">cloudflare</span>{% endif %}
                         </td>
                         <td class="px-4 py-2">
                             <span class="inline-flex items-center px-1.5 py-0.5 bg-purple-100 dark:bg-purple-500/10 text-purple-800 dark:text-purple-400 text-xs font-semibold rounded">{{ txtType }}</span>
@@ -576,7 +618,7 @@
                             <span class="ml-1 px-1 py-0.5 bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 text-xs rounded font-medium" style="font-size: 9px;">manual</span>
                         {% elseif record.source|default('discovered') == 'imported' %}
                             <span class="ml-1 px-1 py-0.5 bg-purple-100 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 text-xs rounded font-medium" style="font-size: 9px;">imported</span>
-                        {% endif %}</td>
+                        {% endif %}{% if cfRecordFlags['NS|' ~ record.host|lower] is defined %}<span class="ml-1 px-1 py-0.5 bg-orange-100 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 text-xs rounded font-medium" style="font-size: 9px;" title="In your Cloudflare zone">cloudflare</span>{% endif %}</td>
                         <td class="px-4 py-2 text-xs font-mono text-gray-600 dark:text-slate-400">
                             {% if nsIps and nsIps.ipv4|default([])|length > 0 %}
                                 {{ nsIps.ipv4|join(', ') }}
@@ -637,7 +679,7 @@
                             <span class="ml-1 px-1 py-0.5 bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 text-xs rounded font-medium" style="font-size: 9px;">manual</span>
                         {% elseif record.source|default('discovered') == 'imported' %}
                             <span class="ml-1 px-1 py-0.5 bg-purple-100 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 text-xs rounded font-medium" style="font-size: 9px;">imported</span>
-                        {% endif %}</td>
+                        {% endif %}{% if cfRecordFlags['SRV|' ~ record.host|lower] is defined %}<span class="ml-1 px-1 py-0.5 bg-orange-100 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 text-xs rounded font-medium" style="font-size: 9px;" title="In your Cloudflare zone">cloudflare</span>{% endif %}</td>
                         <td class="px-4 py-2 text-xs font-mono text-blue-600 dark:text-blue-400">{{ record.value }}</td>
                         <td class="px-4 py-2 text-xs text-gray-900 dark:text-white font-semibold">{{ rawData.port|default('-') }}</td>
                         <td class="px-4 py-2 text-xs text-gray-600 dark:text-slate-400">{{ record.priority|default('-') }}</td>
@@ -697,7 +739,7 @@
                                 <span class="ml-1 px-1 py-0.5 bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 text-xs rounded font-medium" style="font-size: 9px;">manual</span>
                             {% elseif record.source|default('discovered') == 'imported' %}
                                 <span class="ml-1 px-1 py-0.5 bg-purple-100 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 text-xs rounded font-medium" style="font-size: 9px;">imported</span>
-                            {% endif %}
+                            {% endif %}{% if cfRecordFlags['CAA|' ~ record.host|lower] is defined %}<span class="ml-1 px-1 py-0.5 bg-orange-100 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 text-xs rounded font-medium" style="font-size: 9px;" title="In your Cloudflare zone">cloudflare</span>{% endif %}
                         </td>
                         <td class="px-4 py-2">
                             <span class="inline-flex items-center px-1.5 py-0.5 bg-orange-100 dark:bg-orange-500/10 text-orange-800 dark:text-orange-400 text-xs font-semibold rounded">{{ rawData.tag|default('-') }}</span>
@@ -721,6 +763,153 @@
     </div>
     {% endif %}
 
+</div>
+{% endif %}
+
+<!-- DNS History -->
+<div id="dnsHistoryView" class="hidden space-y-3">
+    {% if dnsHistory|default([])|length == 0 %}
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-8 text-center">
+        <i class="fas fa-history text-gray-300 dark:text-slate-600 mb-3" style="font-size: 36px;"></i>
+        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-1">No DNS changes recorded yet</h3>
+        <p class="text-xs text-gray-500 dark:text-slate-400">Records added or removed by the DNS checks, refreshes and scans show here. The first scan of a domain is the starting point and isn't listed.</p>
+    </div>
+    {% else %}
+    {% set historyTypes = [] %}
+    {% for check in dnsHistory %}{% for change in check.changes %}{% if change.record_type not in historyTypes %}{% set historyTypes = historyTypes|merge([change.record_type]) %}{% endif %}{% endfor %}{% endfor %}
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+        <p class="text-xs text-gray-500 dark:text-slate-400">Last {{ dnsHistory|length }} check(s) that found changes. History is kept for 365 days.</p>
+        <select id="dnsHistoryType" onchange="filterDnsHistory(this.value)" class="px-2 py-1 border border-gray-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+            <option value="">All record types</option>
+            {% for t in historyTypes|sort %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+        </select>
+    </div>
+    {% for check in dnsHistory %}
+    <div class="dns-history-check bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+        <div class="px-4 py-2 bg-gray-100 dark:bg-slate-700 border-b border-gray-200 dark:border-slate-600 flex items-center justify-between gap-2 flex-wrap">
+            <h3 class="text-xs font-semibold text-gray-900 dark:text-white">
+                <i class="far fa-clock text-gray-500 dark:text-slate-400 mr-1.5" style="font-size: 10px;"></i>{{ check.detected_at|date('M d, Y H:i') }}
+            </h3>
+            <div class="flex items-center gap-1.5 text-xs">
+                {% if check.counts.added %}<span class="px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400">+{{ check.counts.added }} added</span>{% endif %}
+                {% if check.counts.removed %}<span class="px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400">&minus;{{ check.counts.removed }} removed</span>{% endif %}
+                {% if check.counts.changed %}<span class="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400">{{ check.counts.changed }} changed</span>{% endif %}
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+                <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
+                    {% for change in check.changes %}
+                    <tr class="dns-history-row" data-type="{{ change.record_type }}">
+                        <td class="px-4 py-2 text-xs whitespace-nowrap w-24">
+                            {% if change.kind == 'added' %}<span class="text-green-700 dark:text-green-400"><i class="fas fa-plus mr-1" style="font-size: 9px;"></i>Added</span>
+                            {% elseif change.kind == 'removed' %}<span class="text-red-700 dark:text-red-400"><i class="fas fa-minus mr-1" style="font-size: 9px;"></i>Removed</span>
+                            {% else %}<span class="text-amber-700 dark:text-amber-400"><i class="fas fa-exchange-alt mr-1" style="font-size: 9px;"></i>Changed</span>{% endif %}
+                        </td>
+                        <td class="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-slate-300 whitespace-nowrap w-16">{{ change.record_type }}</td>
+                        <td class="px-4 py-2 text-xs font-mono text-gray-900 dark:text-white whitespace-nowrap">{{ change.host }}</td>
+                        <td class="px-4 py-2 text-xs font-mono break-all">
+                            {% if change.kind == 'changed' %}
+                            <div class="text-red-700 dark:text-red-400 line-through">{% if change.old_priority is not null %}{{ change.old_priority }} {% endif %}{{ change.old_value }}</div>
+                            <div class="text-green-700 dark:text-green-400">{% if change.priority is not null %}{{ change.priority }} {% endif %}{{ change.value }}</div>
+                            {% else %}
+                            <span class="{{ change.kind == 'removed' ? 'text-gray-500 dark:text-slate-400 line-through' : 'text-gray-900 dark:text-white' }}">{% if change.priority is not null %}{{ change.priority }} {% endif %}{{ change.value }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+
+<!-- DNS provider zone (Cloudflare) compared with public DNS -->
+{% if providerZone|default(null) %}
+{% set zone = providerZone %}
+{% set providerName = zone.provider == 'cloudflare' ? 'Cloudflare' : zone.provider|capitalize %}
+{% set cmp = zone.comparison %}
+<div id="dnsProviderView" class="hidden space-y-3">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <p class="text-xs text-gray-600 dark:text-slate-400">
+            <i class="fas fa-cloud text-orange-500 mr-1"></i>
+            {{ providerName }} zone <span class="font-mono">{{ zone.zone_name }}</span> from <strong>{{ zone.account_label }}</strong>
+            · read {{ zone.synced_at ? zone.synced_at|date('M d, Y H:i') : 'never' }}
+            {% if zone.zone_status and zone.zone_status != 'active' %}· <span class="text-amber-600 dark:text-amber-400">zone status: {{ zone.zone_status }}</span>{% endif %}
+        </p>
+        <form method="POST" action="/domains/{{ domain.id }}/provider-dns-sync" onsubmit="this.querySelector('button').disabled = true; this.querySelector('i').classList.add('fa-spin');">
+            {{ csrf_field()|raw }}
+            <button type="submit" class="inline-flex items-center px-3 py-1.5 bg-orange-600 text-white text-xs rounded-lg hover:bg-orange-700 transition-colors font-medium">
+                <i class="fas fa-sync-alt mr-1.5" style="font-size: 10px;"></i>Re-check now
+            </button>
+        </form>
+    </div>
+
+    {% if cmp.mismatches|default(0) == 0 %}
+    <div class="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 rounded-lg p-3 text-xs text-green-800 dark:text-green-300">
+        <i class="fas fa-check-circle mr-1"></i> Public DNS matches the {{ providerName }} zone ({{ cmp.rows|default([])|length }} name(s) checked).
+    </div>
+    {% else %}
+    <div class="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg p-3 text-xs text-amber-800 dark:text-amber-300">
+        <i class="fas fa-exclamation-triangle mr-1"></i>
+        <strong>{{ cmp.mismatches }} difference(s)</strong> between the {{ providerName }} zone and public DNS{% if zone.mismatch_since %}, first seen {{ zone.mismatch_since|date('M d, H:i') }}{% endif %}.
+        A change can take a few minutes to show in public DNS; the domain's group is alerted when it is still different after {{ driftGraceMinutes|default(60) }} minutes.
+    </div>
+    {% endif %}
+
+    {% if cmp.delegation is defined and not cmp.delegation.ok %}
+    <div class="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg p-3 text-xs text-red-800 dark:text-red-300">
+        <i class="fas fa-server mr-1"></i> Public nameservers (<span class="font-mono">{{ cmp.delegation.public|join(', ') }}</span>) are not this zone's (<span class="font-mono">{{ cmp.delegation.zone|join(', ') }}</span>). The domain may not be using this {{ providerName }} zone.
+    </div>
+    {% endif %}
+
+    <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+                <thead class="bg-gray-50 dark:bg-slate-900">
+                    <tr>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Type</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Name</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">{{ providerName }}</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Public DNS</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Result</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
+                    {% for pass in ['problems', 'rest'] %}
+                    {% for row in cmp.rows|default([]) %}
+                    {% set problem = row.status in ['missing', 'different'] %}
+                    {% if (pass == 'problems') == problem %}
+                    <tr class="{{ problem ? 'bg-red-50/50 dark:bg-red-500/5' : '' }}">
+                        <td class="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-slate-300 whitespace-nowrap">{{ row.type }}</td>
+                        <td class="px-4 py-2 text-xs font-mono text-gray-900 dark:text-white whitespace-nowrap">{{ row.host }}</td>
+                        <td class="px-4 py-2 text-xs font-mono text-gray-900 dark:text-white break-all">
+                            {% for v in row.zone %}<div>{{ v }}</div>{% endfor %}
+                            <div class="mt-0.5 text-gray-400 dark:text-slate-500 font-sans">
+                                {% if row.proxied %}<span class="text-orange-600 dark:text-orange-400"><i class="fas fa-cloud" style="font-size: 9px;"></i> proxied</span> · {% endif %}TTL {{ row.ttl == 1 ? 'auto' : row.ttl }}
+                            </div>
+                        </td>
+                        <td class="px-4 py-2 text-xs font-mono text-gray-700 dark:text-slate-300 break-all">
+                            {% for v in row.public %}<div>{{ v }}</div>{% else %}<span class="text-gray-400 dark:text-slate-500 font-sans">{{ row.status == 'skipped' ? '' : 'no answer' }}</span>{% endfor %}
+                        </td>
+                        <td class="px-4 py-2 text-xs whitespace-nowrap">
+                            {% if row.status == 'match' %}<span class="text-green-700 dark:text-green-400"><i class="fas fa-check mr-1"></i>Match</span>
+                            {% elseif row.status == 'proxied' %}<span class="text-green-700 dark:text-green-400" title="Proxied names answer with Cloudflare addresses, so only presence is compared"><i class="fas fa-check mr-1"></i>Proxied, answers</span>
+                            {% elseif row.status == 'flattened' %}<span class="text-green-700 dark:text-green-400" title="A flattened CNAME answers with the target's addresses, so only presence is compared"><i class="fas fa-check mr-1"></i>Flattened, answers</span>
+                            {% elseif row.status == 'missing' %}<span class="text-red-700 dark:text-red-400"><i class="fas fa-times mr-1"></i>Not in public DNS</span>
+                            {% elseif row.status == 'different' %}<span class="text-red-700 dark:text-red-400"><i class="fas fa-not-equal mr-1"></i>Different</span>
+                            {% else %}<span class="text-gray-500 dark:text-slate-400">Not checked</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 {% endif %}
 {% endif %}
@@ -808,6 +997,43 @@
 {% endif %}
 
 <script>
+var DNS_VIEWS = [['records', 'dnsRecordsView', 'dnsViewRecordsBtn'], ['history', 'dnsHistoryView', 'dnsViewHistoryBtn'], ['provider', 'dnsProviderView', 'dnsViewProviderBtn']];
+
+function showDnsView(view) {
+    if (!document.getElementById('dnsRecordsView')) return;
+    if (!DNS_VIEWS.some(function (v) { return v[0] === view && document.getElementById(v[1]); })) view = 'records';
+    var on = ['bg-primary', 'text-white'];
+    var off = ['text-gray-700', 'dark:text-slate-300', 'hover:bg-gray-50', 'dark:hover:bg-slate-700'];
+    DNS_VIEWS.forEach(function (v) {
+        var panel = document.getElementById(v[1]);
+        var btn = document.getElementById(v[2]);
+        if (!panel || !btn) return;
+        var active = v[0] === view;
+        panel.classList.toggle('hidden', !active);
+        on.forEach(function (c) { btn.classList.toggle(c, active); });
+        off.forEach(function (c) { btn.classList.toggle(c, !active); });
+    });
+    try { sessionStorage.setItem('dnsView', view); } catch (e) {}
+}
+
+// Come back to the same DNS view after a refresh or re-check
+try {
+    var savedDnsView = sessionStorage.getItem('dnsView');
+    if (savedDnsView && savedDnsView !== 'records') showDnsView(savedDnsView);
+} catch (e) {}
+
+function filterDnsHistory(type) {
+    document.querySelectorAll('.dns-history-check').forEach(function (check) {
+        var shown = 0;
+        check.querySelectorAll('.dns-history-row').forEach(function (row) {
+            var match = !type || row.dataset.type === type;
+            row.classList.toggle('hidden', !match);
+            if (match) shown++;
+        });
+        check.classList.toggle('hidden', shown === 0);
+    });
+}
+
 function handleDnsRefresh(form) {
     var btn = form.querySelector('.dns-refresh-btn');
     if (btn.disabled) return false;

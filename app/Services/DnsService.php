@@ -286,6 +286,22 @@ class DnsService
         return $records;
     }
 
+    /**
+     * Public answers for one name and record type, parsed like the other lookups.
+     * Used to compare a DNS provider's zone with what resolvers see.
+     */
+    public function lookupType(string $fqdn, string $type, string $domain): array
+    {
+        $constants = array_flip($this->rootRecordTypes());
+        if (!isset($constants[$type])) {
+            return [];
+        }
+        $records = [];
+        $seen = [];
+        $this->queryAndCollect($fqdn, $constants[$type], $type, $domain, $records, $seen);
+        return $records[$type] ?? [];
+    }
+
     // ========================================================================
     // LOOKUP HELPERS
     // ========================================================================

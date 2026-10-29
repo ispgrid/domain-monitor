@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-29
+
+### Added
+- **DNS history** (#75) - The DNS tab has a **History** view: every check that found records added, removed or changed, newest first, with old and new values side by side and a record type filter. It covers the DNS cron, Refresh DNS, Refresh All and the scans. The first scan of a domain is the starting point and isn't listed. History is kept for 365 days
+- **Domain list columns** (#85) - **Columns** on the domain list picks which columns show: Registrar, Expiration, Days Left, Status, SSL Expiry, Tags, Purpose, Group, Last Checked and DNS Checked. The choice is saved to your account; **Default** brings back the usual columns
+- **Cloudflare DNS (read only)** - Connect a Cloudflare account under **Integrations** with an API token that has Zone Read and DNS Read. Zones are matched to your domains by name, and the DNS tab gets a **Cloudflare** view that compares each zone record with public DNS (match, different, not in public DNS; proxied and flattened records are checked for an answer only) and checks that the domain uses the zone's nameservers. Every name in the zone is also looked up by the DNS checks, so **Records** no longer misses subdomains discovery never found, and Records rows in the zone get a **cloudflare** tag with **Proxied** or **DNS only** (values stay what public DNS answers). When they still differ after 60 minutes, the domain's notification group is alerted (the group's DNS alert switch applies) and the account owner gets an in-app notification, once per difference. Zones are read again with every DNS check, with **Sync now** on the account, or with **Re-check now** on the domain. The token is stored encrypted and never shown again; Domain Monitor only reads from Cloudflare. Connecting, changing and removing accounts shows in **Logs → Activity**
+
+### Fixed
+- **Refreshing a domain that was deleted meanwhile** - A refresh takes a few seconds; when the domain was deleted in that time, saving its DNS records or SSL certificates failed with a database error page. You now go back to the domain list with a message
+
+Migrations: 045_add_dns_history_cloudflare_v1.7.0.sql
+
 ## [1.6.0] - 2026-10-29
 
 ### Added

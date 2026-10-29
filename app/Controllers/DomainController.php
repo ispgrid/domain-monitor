@@ -12,6 +12,20 @@ use App\Services\SslService;
 
 class DomainController extends Controller
 {
+    /** Optional columns of the domain list: key => [label, shown by default] */
+    public const LIST_COLUMNS = [
+        'registrar' => ['Registrar', true],
+        'expiration' => ['Expiration', true],
+        'days_left' => ['Days Left', false],
+        'status' => ['Status', true],
+        'ssl_expiry' => ['SSL Expiry', false],
+        'tags' => ['Tags', false],
+        'purpose' => ['Purpose', false],
+        'group' => ['Group', true],
+        'last_checked' => ['Last Checked', true],
+        'dns_checked' => ['DNS Checked', false],
+    ];
+
     private Domain $domainModel;
     private NotificationGroup $groupModel;
     private WhoisService $whoisService;
@@ -100,6 +114,12 @@ class DomainController extends Controller
         
         // Format domains for display
         $formattedDomains = \App\Helpers\DomainHelper::formatMultiple($result['domains']);
+        foreach ($formattedDomains as &$formatted) {
+            $formatted['sslDaysLeft'] = !empty($formatted['ssl_expires_at'])
+                ? \App\Helpers\DomainHelper::daysUntil($formatted['ssl_expires_at'])
+                : null;
+        }
+        unset($formatted);
 
         // Get users for transfer functionality (admin only)
         $users = [];
@@ -114,6 +134,9 @@ class DomainController extends Controller
             'allTags' => $allTags,
             'availableTags' => $availableTags,
             'users' => $users,
+            'columns' => $this->listColumnsFor($userId),
+            'columnDefs' => self::LIST_COLUMNS,
+            'columnsReturn' => $_SERVER['REQUEST_URI'] ?? '/domains',
             'filters' => [
                 'search' => $search,
                 'status' => $status,
@@ -125,6 +148,42 @@ class DomainController extends Controller
             'pagination' => $result['pagination'],
             'title' => 'Domains'
         ]);
+    }
+
+    /**
+     * Which optional list columns the user shows: key => bool
+     */
+    private function listColumnsFor(?int $userId): array
+    {
+        $saved = null;
+        if ($userId) {
+            $user = (new \App\Models\User())->find($userId);
+            $saved = json_decode($user['domain_list_columns'] ?? '', true);
+        }
+
+        $columns = [];
+        foreach (self::LIST_COLUMNS as $key => [, $default]) {
+            $columns[$key] = is_array($saved) ? in_array($key, $saved, true) : $default;
+        }
+        return $columns;
+    }
+
+    /**
+     * POST /domains/columns: save the user's list columns, or reset them to the default
+     */
+    public function saveColumns()
+    {
+        $this->verifyCsrf('/domains');
+
+        $value = null;
+        if (empty($_POST['reset'])) {
+            $picked = array_map('strval', (array)($_POST['columns'] ?? []));
+            $value = json_encode(array_values(array_intersect(array_keys(self::LIST_COLUMNS), $picked)));
+        }
+        (new \App\Models\User())->update(\Core\Auth::id(), ['domain_list_columns' => $value]);
+
+        $back = $_POST['return'] ?? '/domains';
+        $this->redirect(is_string($back) && str_starts_with($back, '/domains') && !str_starts_with($back, '//') ? $back : '/domains');
     }
 
     /**
@@ -823,7 +882,11 @@ class DomainController extends Controller
         $dnsService = new \App\Services\DnsService();
         $dnsModel = new \App\Models\DnsRecord();
 
-        $existingHosts = $dnsModel->getDistinctHosts($id);
+        // Known hosts plus every name in the domain's Cloudflare zone
+        $existingHosts = array_values(array_unique(array_merge(
+            $dnsModel->getDistinctHosts($id),
+            (new \App\Models\ProviderDnsZone())->hostsForDomain($id)
+        )));
         $records = $dnsService->refreshExisting($domain['domain_name'], $existingHosts);
         $totalRecords = array_sum(array_map('count', $records));
 
@@ -836,7 +899,11 @@ class DomainController extends Controller
 
         $this->enrichIpDetails($records, $dnsService);
 
-        $stats = $dnsModel->saveSnapshot($id, $records);
+        try {
+            $stats = $dnsModel->saveSnapshot($id, $records);
+        } catch (\PDOException $e) {
+            $this->handleRefreshSaveError($e, $id);
+        }
         $this->domainModel->update($id, ['dns_last_checked' => date('Y-m-d H:i:s')]);
 
         $logger->info('DNS refresh completed', [
@@ -858,7 +925,11 @@ class DomainController extends Controller
     private function performSslRefreshForHost(int $domainId, string $hostname, int $port = 443): array
     {
         $snapshot = $this->sslService->fetchCertificateSnapshot($hostname, $port);
-        $id = $this->sslCertificateModel->saveSnapshot($domainId, $hostname, $snapshot, $port);
+        try {
+            $id = $this->sslCertificateModel->saveSnapshot($domainId, $hostname, $snapshot, $port);
+        } catch (\PDOException $e) {
+            $this->handleRefreshSaveError($e, $domainId);
+        }
         $this->domainModel->update($domainId, ['ssl_last_checked' => $snapshot['last_checked']]);
 
         return [
@@ -1152,6 +1223,19 @@ class DomainController extends Controller
     }
 
     /**
+     * A refresh takes seconds; if the domain is deleted meanwhile, saving its rows fails on the foreign key.
+     * Send the user back to the list in that case; any other database error is rethrown.
+     */
+    private function handleRefreshSaveError(\PDOException $e, int $id): never
+    {
+        if (($e->errorInfo[1] ?? null) === 1452 && !$this->domainModel->find($id)) {
+            $_SESSION['error'] = 'This domain was deleted while it was being refreshed';
+            $this->redirect('/domains');
+        }
+        throw $e;
+    }
+
+    /**
      * Redirect back to the originating page (domain view or list).
      */
     private function redirectBackToDomain(int $id, string $hash = ''): void
@@ -1305,6 +1389,12 @@ class DomainController extends Controller
         $dnsRecords = $dnsModel->getByDomainGrouped($id);
         $dnsRecordCount = $dnsModel->countByDomain($id);
         $dnsHasCloudflare = $dnsModel->hasCloudflare($id);
+        $dnsHistory = (new \App\Models\DnsRecordChange())->getTimeline($id);
+        try {
+            $providerZone = (new \App\Models\ProviderDnsZone())->getForDomain($id);
+        } catch (\PDOException $e) {
+            $providerZone = null; // table missing until the update's migration has run
+        }
         $sslCertificates = $this->getFormattedSslCertificates($id, $domain['domain_name']);
         $sslStats = $this->buildSslStats($sslCertificates);
 
@@ -1335,6 +1425,11 @@ class DomainController extends Controller
             'dnsRecordCount' => $dnsRecordCount,
             'dnsHasCloudflare' => $dnsHasCloudflare,
             'dnsIpDetails' => $dnsIpDetails,
+            'dnsHistory' => $dnsHistory,
+            'providerZone' => $providerZone,
+            'cfRecordFlags' => $providerZone ? \App\Models\ProviderDnsZone::recordFlags($providerZone['records']) : [],
+            'cfZoneHostCount' => $providerZone ? count((new \App\Models\ProviderDnsZone())->hostsForDomain($id)) : 0,
+            'driftGraceMinutes' => \App\Services\ProviderDnsSync::DRIFT_GRACE_MINUTES,
             'sslCertificates' => $sslCertificates,
             'sslStats' => $sslStats,
             'showBilling' => $settingModel->getValue('show_billing_tab', '0') === '1',
@@ -2253,6 +2348,39 @@ class DomainController extends Controller
     }
 
     /**
+     * Re-read the domain's zone at its DNS provider (Cloudflare) and compare it with public DNS again
+     */
+    public function syncProviderDns($params = [])
+    {
+        $this->verifyCsrf('/domains');
+
+        $id = (int)($params['id'] ?? 0);
+        $domain = $this->checkDomainAccess($id);
+        if (!$domain) {
+            $_SESSION['error'] = 'Domain not found';
+            $this->redirect('/domains');
+        }
+
+        $zone = (new \App\Models\ProviderDnsZone())->findByDomain($id);
+        $account = $zone ? (new \App\Models\RegistrarAccount())->find((int)$zone['account_id']) : null;
+        if (!$zone || !$account) {
+            $_SESSION['error'] = 'This domain is not linked to a DNS provider zone';
+            $this->redirectBackToDomain($id, '#dns');
+        }
+
+        try {
+            $result = (new \App\Services\ProviderDnsSync())->syncDomain($domain, $zone, $account);
+            $label = \App\Services\Registrars\ProviderRegistry::label($account['provider']);
+            $_SESSION[$result['mismatches'] ? 'warning' : 'success'] = $result['mismatches']
+                ? "{$label} zone re-checked: {$result['mismatches']} difference(s) with public DNS"
+                : "{$label} zone re-checked: matches public DNS";
+        } catch (\App\Services\Registrars\ProviderException $e) {
+            $_SESSION['error'] = $e->getMessage();
+        }
+        $this->redirectBackToDomain($id, '#dns');
+    }
+
+    /**
      * Discover DNS records via Quick Scan (synchronous) or Deep Scan (background).
      */
     public function discoverDns($params = [])
@@ -2298,7 +2426,11 @@ class DomainController extends Controller
 
             $this->enrichIpDetails($records, $dnsService);
 
-            $stats = $dnsModel->saveSnapshot($id, $records);
+            try {
+                $stats = $dnsModel->saveSnapshot($id, $records);
+            } catch (\PDOException $e) {
+                $this->handleRefreshSaveError($e, $id);
+            }
             $this->domainModel->update($id, ['dns_last_checked' => date('Y-m-d H:i:s')]);
 
             $logger->info('Quick DNS scan completed', [

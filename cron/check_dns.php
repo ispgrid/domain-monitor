@@ -23,12 +23,16 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use Dotenv\Dotenv;
 use App\Models\Domain;
 use App\Models\DnsRecord;
+use App\Models\DnsRecordChange;
+use App\Models\ProviderDnsZone;
+use App\Models\RegistrarAccount;
 use App\Models\NotificationChannel;
 use App\Models\NotificationGroup;
 use App\Models\NotificationLog;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\DnsService;
+use App\Services\ProviderDnsSync;
 use App\Services\NotificationService;
 use App\Services\Logger;
 use App\Helpers\CronHelper;
@@ -69,6 +73,7 @@ $notificationModel   = new \App\Models\Notification();
 $settingModel        = new Setting();
 $userModel           = new User();
 $dnsService          = new DnsService();
+$providerZones       = new ProviderDnsZone();
 $notificationService = new NotificationService();
 $logger              = new Logger('dns-cron');
 
@@ -138,8 +143,11 @@ foreach ($domains as $domain) {
         $previousRecords = $dnsModel->getPreviousSnapshot($domain['id']);
         $isFirstScan     = empty($previousRecords);
 
-        // Re-check only known hosts — no discovery (brute force / crt.sh)
-        $existingHosts = $dnsModel->getDistinctHosts($domain['id']);
+        // Re-check only known hosts and the names in the domain's Cloudflare zone — no discovery (brute force / crt.sh)
+        $existingHosts = array_values(array_unique(array_merge(
+            $dnsModel->getDistinctHosts($domain['id']),
+            $providerZones->hostsForDomain($domain['id'])
+        )));
         $newRecords    = $dnsService->refreshExisting($domainName, $existingHosts);
         $totalRecords  = array_sum(array_map('count', $newRecords));
 
@@ -224,7 +232,38 @@ foreach ($domains as $domain) {
     }
 }
 
+// DNS provider zones (Cloudflare): read them and compare with public DNS
+try {
+    $accounts = (new RegistrarAccount())->getActive();
+    if (!empty($accounts)) {
+        logMessage("
+Syncing " . count($accounts) . " DNS provider account(s)");
+        $providerSync = new ProviderDnsSync(null, $dnsService);
+        foreach ($accounts as $account) {
+            $result = $providerSync->syncAccount($account);
+            logMessage("  {$account['label']}: {$result['zones']} zone(s), {$result['linked']} matched, {$result['mismatched']} differ from public DNS, {$result['alerts']} alert(s)"
+                . ($result['error'] ? " ✗ {$result['error']}" : ''));
+            if ($result['error']) {
+                $stats['errors']++;
+            }
+        }
+    }
+} catch (\PDOException $e) {
+    // Tables missing until the update's migration has run
+}
+
 $settingModel->setValue('last_dns_check_run', date('Y-m-d H:i:s'));
+
+// DNS history is kept for a year
+try {
+    $pruned = (new DnsRecordChange())->deleteOlderThan(date('Y-m-d H:i:s', strtotime('-' . DnsRecordChange::KEEP_DAYS . ' days')));
+    if ($pruned > 0) {
+        logMessage("Deleted $pruned DNS history row(s) older than " . DnsRecordChange::KEEP_DAYS . " days");
+    }
+} catch (\Exception $e) {
+    logMessage("⚠ DNS history cleanup failed: " . $e->getMessage());
+}
+
 printSummary($stats, $startTime);
 
 $cron->finishRun($stats['checked'], $stats['notifications_sent'], $stats['errors'], [

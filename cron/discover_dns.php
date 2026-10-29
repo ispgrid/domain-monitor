@@ -21,6 +21,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use Dotenv\Dotenv;
 use App\Models\Domain;
 use App\Models\DnsRecord;
+use App\Models\ProviderDnsZone;
 use App\Services\DnsService;
 use App\Services\Logger;
 use App\Helpers\CronHelper;
@@ -146,7 +147,8 @@ foreach ($domains as $domain) {
                 ]);
             }
 
-            $extraSubs  = array_unique(array_merge($existingHosts, $ctSubs));
+            $zoneHosts  = (new ProviderDnsZone())->hostsForDomain($domain['id']);
+            $extraSubs  = array_unique(array_merge($existingHosts, $ctSubs, $zoneHosts));
             $newRecords = $dnsService->lookup($domainName, $extraSubs, fn(string $msg) => $cron->log("  🔎 $msg"));
         }
 

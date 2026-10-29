@@ -39,6 +39,7 @@ class Domain extends Model
     public function getAllWithGroups(?int $userId = null): array
     {
         $sql = "SELECT d.*, ng.name as group_name,
+                       (SELECT MIN(sc.valid_to) FROM ssl_certificates sc WHERE sc.domain_id = d.id) as ssl_expires_at,
                        GROUP_CONCAT(t.name ORDER BY t.name SEPARATOR ',') as tags,
                        GROUP_CONCAT(t.color ORDER BY t.name SEPARATOR '|') as tag_colors
                 FROM domains d 

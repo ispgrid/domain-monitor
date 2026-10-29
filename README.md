@@ -37,6 +37,9 @@ A modern PHP MVC application for monitoring domain expiration dates and sending 
 - 🏴 **Geolocation Tracking** - See location, ISP, and device info for all sessions
 - 📜 **Logs** - Cron runs (with Run now), updates, commands, sent alerts, activity, errors and log files in one place, with alerts when a cron job is late or failing (admins only)
 - 🔌 **Read-only API** - Domains, SSL certificates and counts as JSON for dashboards and scripts, with per-user tokens ([details](#-api))
+- 🕘 **DNS History** - Every record added, removed or changed, kept for a year, on the domain's DNS tab
+- ☁️ **Cloudflare DNS** - Compare your Cloudflare zones with public DNS and get alerted when they drift apart ([details](#-cloudflare-dns))
+- 🧩 **Your Columns** - Pick which columns the domain list shows
 
 ## 📋 Requirements
 
@@ -610,6 +613,25 @@ Example for a [Homepage](https://gethomepage.dev) dashboard (`services.yaml`):
         - field: { data: { ssl: expiring } }
           label: SSL expiring
 ```
+
+## ☁️ Cloudflare DNS
+
+Domain Monitor can read your Cloudflare zones and check that public DNS matches them. It never changes anything at Cloudflare.
+
+1. In Cloudflare, go to **My Profile → API Tokens → Create Token → Custom token** and give it two read permissions: **Zone → Zone → Read** and **Zone → DNS → Read**. Pick the zones it may read (all, or some).
+2. In Domain Monitor, go to **Integrations**, choose Cloudflare, name the account, paste the token and click **Test and connect**.
+3. Zones whose name matches one of your domains are linked to it. Open a domain's **DNS** tab and click **Cloudflare** to see each record next to what public DNS answers.
+
+What is compared:
+- A, AAAA, CNAME, MX, TXT, NS, SRV and CAA records (CAA only where PHP supports it). Other types are listed as "not checked".
+- Proxied records answer with Cloudflare's own addresses, and flattened CNAMEs with their target's addresses, so for those only an answer is checked.
+- The domain's public nameservers must be the zone's nameservers.
+
+The **Records** view also uses the zone: every name in it is looked up by each DNS check, so subdomains discovery never found show up too, and rows that are in the zone get a **cloudflare** tag with **Proxied** or **DNS only**. Records still shows what public DNS answers; proxied rows show Cloudflare's addresses, never your origin.
+
+Zones are read again after every DNS check (`cron/check_dns.php`, no extra cron job needed), with **Sync now** on the account and with **Re-check now** on the domain. When the zone and public DNS still differ after 60 minutes, the domain's notification group gets one alert per difference (switch it off with the group's DNS alerts), and the person who connected the account gets an in-app notification.
+
+The token is stored encrypted with `APP_ENCRYPTION_KEY` and never shown again. Each user sees only their own accounts. In isolated mode an account links only to its owner's domains.
 
 ## 📁 Project Structure
 

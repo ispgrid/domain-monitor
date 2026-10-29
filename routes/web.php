@@ -21,6 +21,7 @@ use App\Controllers\UpdateController;
 use App\Controllers\PasskeyController;
 use App\Controllers\LogsController;
 use App\Controllers\ApiController;
+use App\Controllers\IntegrationController;
 
 $router = Application::$router;
 
@@ -75,6 +76,7 @@ $router->get('/api/search/suggest', [SearchController::class, 'suggest']);
 // Domains
 $router->get('/domains', [DomainController::class, 'index']);
 $router->get('/domains/export', [DomainController::class, 'export']);
+$router->post('/domains/columns', [DomainController::class, 'saveColumns']);
 $router->post('/domains/import', [DomainController::class, 'import']);
 $router->get('/domains/create', [DomainController::class, 'create']);
 $router->get('/domains/bulk-add', [DomainController::class, 'bulkAdd']);
@@ -97,6 +99,7 @@ $router->post('/domains/{id}/update', [DomainController::class, 'update']);
 $router->post('/domains/{id}/update-notes', [DomainController::class, 'updateNotes']);
 $router->post('/domains/{id}/refresh-whois', [DomainController::class, 'refreshWhois']);
 $router->post('/domains/{id}/refresh-dns', [DomainController::class, 'refreshDns']);
+$router->post('/domains/{id}/provider-dns-sync', [DomainController::class, 'syncProviderDns']);
 $router->post('/domains/{id}/discover-dns', [DomainController::class, 'discoverDns']);
 $router->post('/domains/{id}/dns-records', [DomainController::class, 'addDnsRecord']);
 $router->post('/domains/{id}/dns-records/bulk-delete', [DomainController::class, 'bulkDeleteDnsRecords']);
@@ -188,6 +191,13 @@ $router->post('/profile/passkeys/options', [PasskeyController::class, 'registerO
 $router->post('/profile/passkeys', [PasskeyController::class, 'register']);
 $router->post('/profile/passkeys/{id}/rename', [PasskeyController::class, 'rename']);
 $router->post('/profile/passkeys/{id}/delete', [PasskeyController::class, 'delete']);
+
+// Integrations (registrar and DNS provider accounts)
+$router->get('/integrations', [IntegrationController::class, 'index']);
+$router->post('/integrations', [IntegrationController::class, 'add']);
+$router->post('/integrations/{id}/update', [IntegrationController::class, 'update']);
+$router->post('/integrations/{id}/sync', [IntegrationController::class, 'sync']);
+$router->post('/integrations/{id}/delete', [IntegrationController::class, 'delete']);
 
 // API tokens
 $router->post('/profile/api-tokens', [ProfileController::class, 'createApiToken']);
