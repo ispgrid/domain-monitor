@@ -8,6 +8,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title|default('Authentication') }} - {{ appName }}</title>
+    <link rel="icon" href="{{ appIcon|default('/assets/favicon.ico') }}">
     
     {# Tailwind CSS #}
     <script src="https://cdn.tailwindcss.com"></script>
@@ -160,7 +161,7 @@
     
     {# Logo - Top Left #}
     <div class="fixed top-4 left-4 z-20 flex items-center gap-3">
-        <img src="{{ base_url }}/assets/logo.svg" alt="{{ appName }}" class="h-14 w-auto drop-shadow-md">
+        <img src="{{ appLogo }}" alt="{{ appName }}" class="h-14 w-auto max-w-[200px] object-contain drop-shadow-md">
         <div class="flex flex-col">
             <span class="text-xl font-bold text-slate-800 dark:text-white tracking-tight">{{ appName }}</span>
             <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Track your domains</span>

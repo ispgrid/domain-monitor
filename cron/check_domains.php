@@ -588,6 +588,29 @@ if ($stats['domains_with_notifications'] > 0) {
     }
 }
 
+// Website icons for the domain list: new ones, then a weekly refresh. Capped so a big list finishes over a few runs.
+try {
+    $favicons = new \App\Services\FaviconService();
+    $faviconDeadline = microtime(true) + 600;
+    $faviconStats = ['found' => 0, 'none' => 0, 'left' => 0];
+    foreach ($domains as $domain) {
+        if (!$favicons->isDue($domain['domain_name'])) {
+            continue;
+        }
+        if (microtime(true) > $faviconDeadline) {
+            $faviconStats['left']++;
+            continue;
+        }
+        $faviconStats[$favicons->refresh($domain['domain_name']) ? 'found' : 'none']++;
+    }
+    if (array_sum($faviconStats) > 0) {
+        logMessage("Site icons: {$faviconStats['found']} found, {$faviconStats['none']} without an icon"
+            . ($faviconStats['left'] ? ", {$faviconStats['left']} left for the next run" : ''));
+    }
+} catch (\Throwable $e) {
+    logMessage("Site icon error: " . $e->getMessage());
+}
+
 // Check for application updates (respects 6-hour cache) and notify admins if new version available
 try {
     $updateService = new UpdateService();

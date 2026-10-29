@@ -17,7 +17,7 @@
     <title>{{ title|default('Domain Monitor') }} - {{ appName }}</title>
     
     {# Favicon #}
-    <link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
+    <link rel="icon" href="{{ appIcon|default('/assets/favicon.ico') }}">
     
     {# Tailwind CSS #}
     <script src="https://cdn.tailwindcss.com"></script>

@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Domain;
 use App\Models\NotificationGroup;
 use App\Models\SslCertificate;
+use App\Services\FaviconService;
 use App\Services\WhoisService;
 use App\Services\SslService;
 
@@ -114,7 +115,9 @@ class DomainController extends Controller
         
         // Format domains for display
         $formattedDomains = \App\Helpers\DomainHelper::formatMultiple($result['domains']);
+        $favicons = new FaviconService();
         foreach ($formattedDomains as &$formatted) {
+            $formatted['favicon_version'] = $favicons->cached($formatted['domain_name'])['version'] ?? null;
             $formatted['sslDaysLeft'] = !empty($formatted['ssl_expires_at'])
                 ? \App\Helpers\DomainHelper::daysUntil($formatted['ssl_expires_at'])
                 : null;
@@ -1313,6 +1316,7 @@ class DomainController extends Controller
         } else {
             $messages[] = 'SSL skipped (monitoring disabled)';
         }
+        $messages[] = (new FaviconService())->refresh($domain['domain_name']) ? 'site icon updated' : 'no site icon found';
 
         $_SESSION['success'] = 'Domain refreshed: ' . implode(', ', $messages);
         $this->redirectBackToDomain($id);
@@ -1433,8 +1437,38 @@ class DomainController extends Controller
             'sslCertificates' => $sslCertificates,
             'sslStats' => $sslStats,
             'showBilling' => $settingModel->getValue('show_billing_tab', '0') === '1',
+            'pageIconImage' => $this->faviconUrl($id, $domain['domain_name']),
             'title' => $domain['domain_name']
         ]);
+    }
+
+    /**
+     * The website's cached icon, shown in the domain list and the domain page header
+     */
+    public function favicon($params = [])
+    {
+        $domain = $this->checkDomainAccess((int)($params['id'] ?? 0));
+        // Many icons load at once; don't hold the session for each
+        session_write_close();
+
+        $icon = $domain ? (new FaviconService())->cached($domain['domain_name']) : null;
+        if (!$icon) {
+            http_response_code(404);
+            return;
+        }
+
+        header('Content-Type: ' . $icon['mime']);
+        header('Content-Length: ' . filesize($icon['path']));
+        header('Cache-Control: private, max-age=604800');
+        header('X-Content-Type-Options: nosniff');
+        header("Content-Security-Policy: default-src 'none'");
+        readfile($icon['path']);
+    }
+
+    private function faviconUrl(int $id, string $domainName): ?string
+    {
+        $icon = (new FaviconService())->cached($domainName);
+        return $icon ? "/domains/{$id}/favicon?v={$icon['version']}" : null;
     }
 
     public function bulkAdd()

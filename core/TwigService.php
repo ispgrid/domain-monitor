@@ -101,6 +101,7 @@ class TwigService
 
             $domainStats = \App\Helpers\LayoutHelper::getDomainStats();
             $appSettings = \App\Helpers\LayoutHelper::getAppSettings();
+            $customLogo = \App\Helpers\BrandingHelper::logoUrl();
 
             $avatar = null;
             if ($userId) {
@@ -128,6 +129,8 @@ class TwigService
                 'logsStatus'          => $logsStatus,
                 'domainStats'         => $domainStats,
                 'appName'             => $appSettings['app_name'],
+                'appLogo'             => $customLogo ?? '/assets/logo.svg',
+                'appIcon'             => $customLogo ?? '/assets/favicon.ico',
                 'appTimezone'         => $appSettings['app_timezone'],
                 'appVersion'          => $appSettings['app_version'],
                 'avatar'              => $avatar,
@@ -145,6 +148,8 @@ class TwigService
                 'logsStatus'          => ['count' => 0, 'cron_problems' => []],
                 'domainStats'         => [],
                 'appName'             => 'Domain Monitor',
+                'appLogo'             => '/assets/logo.svg',
+                'appIcon'             => '/assets/favicon.ico',
                 'appTimezone'         => 'UTC',
                 'appVersion'          => '',
                 'avatar'              => null,

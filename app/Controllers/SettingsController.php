@@ -6,6 +6,7 @@ use Core\Controller;
 use Core\Auth;
 use App\Models\AuditLog;
 use App\Models\Setting;
+use App\Helpers\BrandingHelper;
 use App\Helpers\EmailHelper;
 use App\Services\Logger;
 
@@ -388,6 +389,13 @@ class SettingsController extends Controller
 
             // Update app settings
             $this->settingModel->updateAppSettings($appSettings);
+
+            $logoError = null;
+            if (!empty($_FILES['app_logo']) && $_FILES['app_logo']['error'] !== UPLOAD_ERR_NO_FILE) {
+                $logoError = BrandingHelper::saveUpload($_FILES['app_logo']);
+            } elseif (!empty($_POST['remove_logo'])) {
+                BrandingHelper::remove();
+            }
             
             // Update registration settings
             $registrationEnabled = isset($_POST['registration_enabled']) ? '1' : '0';
@@ -405,7 +413,11 @@ class SettingsController extends Controller
             $this->settingModel->setValue('show_billing_tab', isset($_POST['show_billing_tab']) ? '1' : '0');
             
             $this->auditSettings('application');
-            $_SESSION['success'] = 'Application settings updated successfully';
+            if ($logoError !== null) {
+                $_SESSION['warning'] = 'Application settings updated, but the logo was not changed: ' . $logoError;
+            } else {
+                $_SESSION['success'] = 'Application settings updated successfully';
+            }
             $this->redirect('/settings#app');
 
         } catch (\Exception $e) {

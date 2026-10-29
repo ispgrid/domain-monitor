@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Site icons in the domain list** - Each domain shows its website's icon in the list and on the domain page, instead of the globe. The server fetches the icon itself (the page's `<link rel="icon">`, then `/favicon.ico`), so your domain list is never sent to Google or any other icon service. Icons are cached and refreshed weekly by the domain cron, and **Refresh All** fetches one straight away. Domains with no website or no icon keep the globe. Local and private network addresses are never fetched, and SVG icons are skipped
+- **Custom logo** - **Settings → Application** takes a logo (PNG, JPG, WebP or GIF, up to 1 MB). It replaces the built-in logo in the sidebar, on the login page and as the browser tab icon. **Use the default logo** switches back
+
 ## [1.7.1] - 2026-10-29
 
 ### Changed

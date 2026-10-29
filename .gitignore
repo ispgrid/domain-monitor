@@ -17,6 +17,10 @@
 /cache/*
 !/cache/.gitkeep
 
+# Uploaded avatars and logo
+/public/assets/uploads/*
+!/public/assets/uploads/.htaccess
+
 # IDE & Editor
 .vscode/
 .idea/

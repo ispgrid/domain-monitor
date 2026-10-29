@@ -95,6 +95,7 @@ $router->post('/domains/bulk-transfer', [DomainController::class, 'bulkTransfer'
 $router->post('/domains/store', [DomainController::class, 'store']);
 $router->get('/domains/{id}', [DomainController::class, 'show']);
 $router->get('/domains/{id}/edit', [DomainController::class, 'edit']);
+$router->get('/domains/{id}/favicon', [DomainController::class, 'favicon']);
 $router->post('/domains/{id}/update', [DomainController::class, 'update']);
 $router->post('/domains/{id}/update-notes', [DomainController::class, 'updateNotes']);
 $router->post('/domains/{id}/refresh-whois', [DomainController::class, 'refreshWhois']);

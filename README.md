@@ -449,6 +449,8 @@ Before setting up the cron job, test your notification channels through the web 
 
 The system will automatically fetch WHOIS information.
 
+The list shows each domain's website icon once the domain cron has run (or right away after **Refresh All** on the domain). Domains without a website keep the globe. Icons are fetched by your server and cached in `cache/favicons`, so no outside icon service sees your domains.
+
 ### Creating Notification Groups
 
 1. Navigate to **Notification Groups** → **Create Group**
@@ -485,6 +487,7 @@ All system settings are managed through the **Settings** page (`/settings`) in y
 
 #### Application Settings
 - **Application Name**: Customize the display name
+- **Logo**: Upload your own logo (PNG, JPG, WebP or GIF, up to 1 MB) for the sidebar, the login page and the browser tab
 - **Application URL**: Base URL for links in emails
 - **Timezone**: Set your preferred timezone
 - **User Registration**: Enable/disable new user signups

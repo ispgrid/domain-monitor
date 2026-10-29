@@ -355,9 +355,16 @@
                             </td>
                             <td class="px-6 py-4">
                                 <div class="flex items-center">
-                                    <div class="flex-shrink-0 h-10 w-10 bg-primary bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
-                                        <i class="fas fa-globe text-primary"></i>
-                                    </div>
+                                    {% if domain.favicon_version %}
+                                        <div class="flex-shrink-0 h-10 w-10 bg-white border border-gray-200 dark:border-slate-600 rounded-lg flex items-center justify-center">
+                                            <img src="/domains/{{ domain.id }}/favicon?v={{ domain.favicon_version }}" alt="" class="h-5 w-5 object-contain" loading="lazy"
+                                                 onerror="this.replaceWith(Object.assign(document.createElement('i'), {className: 'fas fa-globe text-primary'}))">
+                                        </div>
+                                    {% else %}
+                                        <div class="flex-shrink-0 h-10 w-10 bg-primary bg-opacity-10 dark:bg-opacity-20 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-globe text-primary"></i>
+                                        </div>
+                                    {% endif %}
                                     <div class="ml-4">
                                         <a href="/domains/{{ domain.id }}" class="text-sm font-semibold text-gray-900 dark:text-white hover:text-primary">{{ domain.domain_name }}</a>
                                         <div class="flex items-center gap-1.5 mt-1">
