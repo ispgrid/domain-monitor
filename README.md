@@ -10,6 +10,32 @@
 
 A modern PHP MVC application for monitoring domain expiration dates and sending notifications through multiple channels (Email, Telegram, Discord, Slack, Mattermost, Pushover, Webhook). Never lose a domain again with automated monitoring and timely alerts.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/screenshots/dashboard-dark.png">
+  <img alt="Dashboard" src=".github/screenshots/dashboard.png">
+</picture>
+
+| Domains | Domain page | DNS records |
+|---|---|---|
+| ![Domain list with site icons, tags and groups](.github/screenshots/domains.png) | ![Domain overview](.github/screenshots/domain-overview.png) | ![DNS records](.github/screenshots/domain-dns.png) |
+| **SSL certificates** | **Notification groups** | **Logs** |
+| ![SSL certificate details](.github/screenshots/domain-ssl.png) | ![Notification groups](.github/screenshots/groups.png) | ![Logs overview](.github/screenshots/logs.png) |
+
+<details>
+<summary><b>More screenshots</b>: settings, logs and updates</summary>
+
+| Settings: Application | Settings: Monitoring |
+|---|---|
+| ![Application settings with custom logo](.github/screenshots/settings-app.png) | ![Monitoring settings](.github/screenshots/settings-monitoring.png) |
+| **Settings: Security** | **Settings: Updates** |
+| ![Security settings](.github/screenshots/settings-security.png) | ![Update channel and status](.github/screenshots/settings-updates.png) |
+| **Logs: Cron runs** | **Logs: Updates** |
+| ![Cron runs](.github/screenshots/logs-cron.png) | ![Update history](.github/screenshots/logs-updates.png) |
+| **Logs: Update details** | |
+| ![Update details](.github/screenshots/logs-update-detail.png) | |
+
+</details>
+
 ## ✨ Features
 
 ### Core Features

@@ -265,7 +265,7 @@ class UpdateService
 
             // Step 7: Update commit SHA tracking. Done before composer install: once vendor is
             // replaced, classes loaded earlier in this request no longer match the files on disk
-            $this->updateCommitSha();
+            $this->updateCommitSha($type);
 
             // Step 8: Run composer install if dependencies changed (skip if exec disabled, e.g. cPanel)
             $result['composer_manual_required'] = false;
@@ -669,27 +669,35 @@ class UpdateService
         }
 
         if ($type === 'release') {
-            $release = $this->fetchLatestRelease();
-            if (empty($release['tag_name'])) {
-                return null;
-            }
-            $tag = $release['tag_name']; // e.g. v1.1.3
-            try {
-                $url = self::GITHUB_API_BASE . '/repos/' . self::GITHUB_REPO . '/commits/' . $tag;
-                $response = $this->httpClient->get($url);
-                $data = json_decode($response->getBody()->getContents(), true);
-                $fullSha = $data['sha'] ?? null;
-                return $fullSha ? substr($fullSha, 0, 7) : null;
-            } catch (\Exception $e) {
-                $this->logger->warning('Could not fetch commit SHA for release tag', [
-                    'tag' => $tag,
-                    'error' => $e->getMessage(),
-                ]);
-                return null;
-            }
+            $fullSha = $this->fetchReleaseCommitSha();
+            return $fullSha ? substr($fullSha, 0, 7) : null;
         }
 
         return null;
+    }
+
+    /**
+     * Full commit SHA of the latest release tag
+     */
+    private function fetchReleaseCommitSha(): ?string
+    {
+        $release = $this->fetchLatestRelease();
+        if (empty($release['tag_name'])) {
+            return null;
+        }
+        $tag = $release['tag_name']; // e.g. v1.1.3
+        try {
+            $url = self::GITHUB_API_BASE . '/repos/' . self::GITHUB_REPO . '/commits/' . $tag;
+            $response = $this->httpClient->get($url);
+            $data = json_decode($response->getBody()->getContents(), true);
+            return $data['sha'] ?? null;
+        } catch (\Exception $e) {
+            $this->logger->warning('Could not fetch commit SHA for release tag', [
+                'tag' => $tag,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
     }
 
     /**
@@ -1451,15 +1459,18 @@ class UpdateService
     // ========================================================================
 
     /**
-     * Update the stored commit SHA to the latest
+     * Store the commit SHA of the code that was just installed
      */
-    private function updateCommitSha(): void
+    private function updateCommitSha(string $type): void
     {
-        $latestSha = $this->fetchLatestCommitSha();
-        if ($latestSha) {
-            $this->settingModel->setValue('installed_commit_sha', $latestSha);
+        // The commit actually installed, not main's head: after a release, commits already
+        // pushed to main must still show as a hotfix on the Latest channel
+        $installedSha = $this->archiveCommitSha
+            ?? ($type === 'release' ? $this->fetchReleaseCommitSha() : $this->fetchLatestCommitSha());
+        if ($installedSha) {
+            $this->settingModel->setValue('installed_commit_sha', $installedSha);
             $this->logger->info('Updated installed commit SHA', [
-                'sha' => substr($latestSha, 0, 7),
+                'sha' => substr($installedSha, 0, 7),
             ]);
         }
     }

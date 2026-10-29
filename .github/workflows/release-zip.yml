@@ -1,0 +1,36 @@
+name: Release zip
+
+# Attaches domain-monitor-vX.Y.Z.zip to each release. Install scripts such as the
+# Proxmox VE helper script download this file. Same layout as before: a single
+# domain-monitor/ folder, no vendor/ (run composer install after unpacking).
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build the zip for (e.g. v1.8.0)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build zip
+        run: |
+          git archive --format=zip --prefix=domain-monitor/ -o "domain-monitor-$TAG.zip" "refs/tags/$TAG"
+          unzip -l "domain-monitor-$TAG.zip" | tail -1
+
+      - name: Attach to release
+        run: gh release upload "$TAG" "domain-monitor-$TAG.zip" --clobber -R "$GITHUB_REPOSITORY"
