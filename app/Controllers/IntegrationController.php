@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\RegistrarAccount;
+use App\Services\CommandRunner;
 use App\Services\ProviderDnsSync;
 use App\Services\Registrars\ProviderRegistry;
 use Core\Auth;
@@ -77,8 +78,8 @@ class IntegrationController extends Controller
             'entity_id' => $id,
         ]);
 
-        $summary = $this->runSync($this->accountModel->find($id));
-        $_SESSION[$summary['error'] ? 'warning' : 'success'] = 'Account connected. ' . $this->describe($summary);
+        // Reading every zone can take a minute on big accounts, so that waits for Sync now or the next DNS check
+        $_SESSION['success'] = 'Account connected. Click Sync now to read its zones, or they are read with the next DNS check.';
         $this->redirect('/integrations');
     }
 
@@ -124,9 +125,42 @@ class IntegrationController extends Controller
         $this->verifyCsrf('/integrations');
         $account = $this->ownAccount($params);
 
+        if (in_array((int)$account['id'], $this->accountModel->syncingIds(Auth::id()), true)) {
+            $_SESSION['info'] = 'This account is already syncing.';
+            $this->redirect('/integrations');
+        }
+
+        // Big accounts take a minute or more, so the sync runs in its own process when the server allows it
+        if (CommandRunner::canRun()) {
+            $this->accountModel->markSyncing((int)$account['id']);
+            $started = CommandRunner::spawnPhp(
+                realpath(__DIR__ . '/../../cron/sync_dns_provider.php'),
+                ['--account=' . (int)$account['id']],
+                'Sync DNS provider: ' . $account['label'],
+                'integrations'
+            );
+            if ($started) {
+                $_SESSION['info'] = 'Sync started in the background. This page updates when it finishes.';
+                $this->redirect('/integrations');
+            }
+            $this->accountModel->update((int)$account['id'], ['last_status' => $account['last_status']]);
+        }
+
         $summary = $this->runSync($account);
         $_SESSION[$summary['error'] ? 'error' : 'success'] = $this->describe($summary);
         $this->redirect('/integrations');
+    }
+
+    /**
+     * Accounts still syncing in the background, polled by the Integrations page
+     */
+    public function status()
+    {
+        try {
+            $this->json(['syncing' => $this->accountModel->syncingIds(Auth::id())]);
+        } catch (\PDOException $e) {
+            $this->json(['syncing' => []]);
+        }
     }
 
     public function delete($params = [])

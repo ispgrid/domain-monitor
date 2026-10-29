@@ -12,10 +12,14 @@ class RegistrarAccount extends Model
 {
     protected static string $table = 'registrar_accounts';
 
+    // A background sync that hasn't finished after this long is treated as dead
+    public const SYNC_TIMEOUT_MINUTES = 15;
+
     public function getByUser(int $userId): array
     {
         $stmt = $this->db->prepare(
             "SELECT a.id, a.user_id, a.provider, a.label, a.is_active, a.last_sync_at, a.last_status, a.last_error, a.created_at,
+                    (a.last_status = 'syncing' AND a.updated_at > NOW() - INTERVAL " . self::SYNC_TIMEOUT_MINUTES . " MINUTE) AS is_syncing,
                     (SELECT COUNT(*) FROM provider_dns_zones z WHERE z.account_id = a.id) AS zone_count
              FROM registrar_accounts a WHERE a.user_id = ? ORDER BY a.label ASC"
         );
@@ -57,6 +61,27 @@ class RegistrarAccount extends Model
             return [];
         }
         return json_decode((new Encryption())->decrypt($account['credentials']), true) ?: [];
+    }
+
+    /**
+     * Ids of the user's accounts with a background sync still running
+     */
+    public function syncingIds(int $userId): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT id FROM registrar_accounts
+             WHERE user_id = ? AND last_status = 'syncing' AND updated_at > NOW() - INTERVAL " . self::SYNC_TIMEOUT_MINUTES . " MINUTE"
+        );
+        $stmt->execute([$userId]);
+        return array_map('intval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
+    /**
+     * Mark a background sync as started. updated_at is set here so a repeat of a dead sync restarts the timeout.
+     */
+    public function markSyncing(int $id): void
+    {
+        $this->db->prepare("UPDATE registrar_accounts SET last_status = 'syncing', updated_at = NOW() WHERE id = ?")->execute([$id]);
     }
 
     public function recordSync(int $id, ?string $error): void

@@ -194,6 +194,7 @@ $router->post('/profile/passkeys/{id}/delete', [PasskeyController::class, 'delet
 
 // Integrations (registrar and DNS provider accounts)
 $router->get('/integrations', [IntegrationController::class, 'index']);
+$router->get('/integrations/status', [IntegrationController::class, 'status']);
 $router->post('/integrations', [IntegrationController::class, 'add']);
 $router->post('/integrations/{id}/update', [IntegrationController::class, 'update']);
 $router->post('/integrations/{id}/sync', [IntegrationController::class, 'sync']);

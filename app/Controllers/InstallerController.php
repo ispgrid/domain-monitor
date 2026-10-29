@@ -76,6 +76,7 @@ class InstallerController extends Controller
             '043_add_security_fixes_v1.5.2.sql',
             '044_add_api_tokens_v1.6.0.sql',
             '045_add_dns_history_cloudflare_v1.7.0.sql',
+            '046_update_app_version_v1.7.1.sql',
         ];
 
         try {
@@ -238,6 +239,7 @@ class InstallerController extends Controller
                     '043_add_security_fixes_v1.5.2.sql',
                     '044_add_api_tokens_v1.6.0.sql',
                     '045_add_dns_history_cloudflare_v1.7.0.sql',
+                    '046_update_app_version_v1.7.1.sql',
                 ];
             }
 
@@ -481,6 +483,7 @@ class InstallerController extends Controller
                     '043_add_security_fixes_v1.5.2.sql',
                     '044_add_api_tokens_v1.6.0.sql',
                     '045_add_dns_history_cloudflare_v1.7.0.sql',
+                    '046_update_app_version_v1.7.1.sql',
                 ];
 
                 $stmt = $pdo->prepare("INSERT INTO migrations (migration) VALUES (?) ON DUPLICATE KEY UPDATE migration=migration");
@@ -718,7 +721,9 @@ class InstallerController extends Controller
                     
                     // Fallback: detect "to" version from which migrations were run
                     if ($toVersion === $fromVersion) {
-                        if (in_array('045_add_dns_history_cloudflare_v1.7.0.sql', $executed)) {
+                        if (in_array('046_update_app_version_v1.7.1.sql', $executed)) {
+                            $toVersion = '1.7.1';
+                        } elseif (in_array('045_add_dns_history_cloudflare_v1.7.0.sql', $executed)) {
                             $toVersion = '1.7.0';
                         } elseif (in_array('044_add_api_tokens_v1.6.0.sql', $executed)) {
                             $toVersion = '1.6.0';

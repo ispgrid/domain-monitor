@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-10-29
+
+### Changed
+- **Faster Cloudflare connect** - **Test and connect** only checks the token and saves the account. Zones are read with **Sync now** or the next DNS check, so adding a big account no longer hangs for a minute
+- **Sync now runs in the background** - The click returns at once and the account shows **Syncing** until the zones are read; the page refreshes itself when it's done. A second click while it runs is ignored, and a sync that hasn't finished after 15 minutes shows **Sync did not finish**. The run shows in **Logs → Commands**. Servers that don't allow PHP to start commands (exec disabled) still sync in the request as before
+
+Migrations: 046_update_app_version_v1.7.1.sql (version number only)
+
 ## [1.7.0] - 2026-10-29
 
 ### Added

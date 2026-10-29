@@ -619,7 +619,7 @@ Example for a [Homepage](https://gethomepage.dev) dashboard (`services.yaml`):
 Domain Monitor can read your Cloudflare zones and check that public DNS matches them. It never changes anything at Cloudflare.
 
 1. In Cloudflare, go to **My Profile → API Tokens → Create Token → Custom token** and give it two read permissions: **Zone → Zone → Read** and **Zone → DNS → Read**. Pick the zones it may read (all, or some).
-2. In Domain Monitor, go to **Integrations**, choose Cloudflare, name the account, paste the token and click **Test and connect**.
+2. In Domain Monitor, go to **Integrations**, choose Cloudflare, name the account, paste the token and click **Test and connect**. This only checks the token; click **Sync now** on the account to read the zones (or wait for the next DNS check). Sync now runs in the background: the account shows **Syncing** and the page refreshes itself when it's done.
 3. Zones whose name matches one of your domains are linked to it. Open a domain's **DNS** tab and click **Cloudflare** to see each record next to what public DNS answers.
 
 What is compared:
