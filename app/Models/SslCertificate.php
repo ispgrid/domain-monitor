@@ -66,6 +66,38 @@ class SslCertificate extends Model
     }
 
     /**
+     * Certificates of active, SSL-monitored domains for the API, soonest expiry first.
+     */
+    public function getForApi(?int $userId = null, ?string $status = null, ?int $domainId = null): array
+    {
+        $where = "d.is_active = 1 AND d.ssl_monitoring_enabled = 1";
+        $params = [];
+
+        if ($userId) {
+            $where .= " AND d.user_id = ?";
+            $params[] = $userId;
+        }
+        if ($status !== null) {
+            $where .= " AND sc.status = ?";
+            $params[] = $status;
+        }
+        if ($domainId !== null) {
+            $where .= " AND sc.domain_id = ?";
+            $params[] = $domainId;
+        }
+
+        $stmt = $this->db->prepare(
+            "SELECT sc.*, d.domain_name
+             FROM ssl_certificates sc
+             JOIN domains d ON d.id = sc.domain_id
+             WHERE {$where}
+             ORDER BY sc.valid_to IS NULL, sc.valid_to ASC, sc.hostname ASC"
+        );
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    /**
      * Count monitored SSL certificates for a domain.
      */
     public function countByDomain(int $domainId): int

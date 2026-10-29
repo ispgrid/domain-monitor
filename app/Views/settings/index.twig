@@ -268,13 +268,19 @@
                         SMTP Password
                     </label>
                     <input type="password" id="mail_password" name="mail_password"
-                           value="{{ emailSettings.mail_password }}"
-                           placeholder="••••••••"
+                           value="" autocomplete="new-password"
+                           placeholder="{{ emailSettings.mail_password_set ? '••••••••' : 'Enter the SMTP password' }}"
                            class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
                     <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">
                         <i class="fas fa-lock text-green-600 dark:text-green-400 mr-1"></i>
-                        Encrypted before storing in database
+                        Encrypted before storing in database.{% if emailSettings.mail_password_set %} Leave blank to keep the saved password.{% endif %}
                     </p>
+                    {% if emailSettings.mail_password_set %}
+                    <label class="inline-flex items-center mt-2 text-xs text-gray-600 dark:text-slate-400">
+                        <input type="checkbox" name="mail_password_clear" value="1" class="w-3.5 h-3.5 mr-1.5 text-primary border-gray-300 dark:border-slate-600 rounded focus:ring-primary">
+                        Remove the saved password
+                    </label>
+                    {% endif %}
                 </div>
 
                 <div>
@@ -859,6 +865,20 @@
                             Allow Passkeys
                         </label>
                         <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Users can add passkeys in their profile and sign in with them instead of a password. A passkey sign-in skips the 2FA code, since the device already checks a PIN or biometric. Needs HTTPS.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start pt-2">
+                    <div class="flex items-center h-5">
+                        <input type="checkbox" id="api_enabled" name="api_enabled" value="1"
+                               {{ (twoFactorSettings.api_enabled ?? true) ? 'checked' : '' }}
+                               class="w-4 h-4 text-primary border-gray-300 dark:border-slate-600 rounded focus:ring-primary">
+                    </div>
+                    <div class="ml-3">
+                        <label for="api_enabled" class="text-sm font-medium text-gray-700 dark:text-slate-300">
+                            Allow API Access
+                        </label>
+                        <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">Users can create API tokens in their profile (Profile → API Tokens) and read their domains, SSL certificates and counts through the read-only API at <code>/api/v1</code>. Turning this off stops all existing tokens.</p>
                     </div>
                 </div>
             </div>

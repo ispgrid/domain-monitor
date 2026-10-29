@@ -132,7 +132,7 @@ class Setting extends Model
      */
     public function getAppVersion(): string
     {
-        return $this->getValue('app_version', '1.5.2');
+        return $this->getValue('app_version', '1.6.0');
     }
 
     /**
@@ -306,7 +306,8 @@ class Setting extends Model
             'policy' => $this->getValue('two_factor_policy', 'optional'),
             'rate_limit_minutes' => (int)$this->getValue('two_factor_rate_limit_minutes', 15),
             'email_code_expiry_minutes' => (int)$this->getValue('two_factor_email_code_expiry_minutes', 10),
-            'passkeys_enabled' => $this->getValue('passkeys_enabled', '1') === '1'
+            'passkeys_enabled' => $this->getValue('passkeys_enabled', '1') === '1',
+            'api_enabled' => $this->getValue('api_enabled', '1') === '1'
         ];
     }
 

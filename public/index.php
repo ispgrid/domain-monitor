@@ -67,9 +67,14 @@ try {
     throw $e;
 }
 
+// API requests authenticate with a token and never get a session (no cookie, no session row per call)
+$isApiRequest = (bool)preg_match('#^/api/v1(/|$)#', (string)parse_url($requestUri, PHP_URL_PATH));
+
 // Configure and start session (with database sessions if available)
-Core\SessionConfig::configure();
-Core\SessionConfig::start();
+if (!$isApiRequest) {
+    Core\SessionConfig::configure();
+    Core\SessionConfig::start();
+}
 
 // Load CSRF helper functions
 require_once __DIR__ . '/../app/Helpers/CsrfHelper.php';
@@ -89,7 +94,7 @@ if (!$isInstallerPath) {
 }
 
 // Check remember me token if user is not logged in
-if (!isset($_SESSION['user_id']) && isset($_COOKIE['remember_token']) && !$isInstallerPath) {
+if (!$isApiRequest && !isset($_SESSION['user_id']) && isset($_COOKIE['remember_token']) && !$isInstallerPath) {
     $authController = new \App\Controllers\AuthController();
     $authController->checkRememberToken();
 }

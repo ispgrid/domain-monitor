@@ -1,5 +1,9 @@
 RewriteEngine On
 
+# Pass the Authorization header to PHP (API tokens); some PHP setups drop it otherwise
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
 # Redirect to index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

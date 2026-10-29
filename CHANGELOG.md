@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-29
+
+### Added
+- **Read-only API** (#93, #102) - JSON endpoints under `/api/v1` for dashboards (e.g. Homepage), scripts and monitoring: `/api/v1/stats` (domain and SSL counts), `/api/v1/domains` (list with status, group, tag and search filters, sorting and pages), `/api/v1/domains/{id or name}` (one domain with nameservers, registry statuses and SSL certificates) and `/api/v1/ssl` (certificates). The API sees the same domains as the token's user: all of them in shared mode, only their own in isolated mode. Requests don't create a session
+- **API tokens** - Created under **Profile → API Tokens**, with an expiry of 30 days, 90 days, 1 year or never. A token is shown once; only a hash is stored. Send it as `Authorization: Bearer <token>` or `X-API-Key: <token>`. Each token can make 120 requests per minute, and an IP address that sends 20 wrong tokens in 15 minutes is paused for 15 minutes. Creating and deleting tokens shows in **Logs → Activity**
+- **Allow API Access** switch under **Settings → Security** (on by default). Turning it off stops all tokens
+
+### Security
+- **SMTP password no longer sent to the browser** - The Email settings page put the saved SMTP password into the page source. The field is now empty: leave it blank to keep the saved password, or tick **Remove the saved password**
+
+### Changed
+- `public/.htaccess` passes the `Authorization` header to PHP, which some Apache and PHP-FPM setups drop otherwise. With nginx no change is needed
+
+Migrations: 044_add_api_tokens_v1.6.0.sql
+
 ## [1.5.2] - 2026-10-27
 
 Security release. Fixes the issues found in a security review of the app, the installer and the Docker setup.

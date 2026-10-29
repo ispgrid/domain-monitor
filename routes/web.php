@@ -20,6 +20,7 @@ use App\Controllers\TagController;
 use App\Controllers\UpdateController;
 use App\Controllers\PasskeyController;
 use App\Controllers\LogsController;
+use App\Controllers\ApiController;
 
 $router = Application::$router;
 
@@ -50,6 +51,12 @@ $router->post('/reset-password', [AuthController::class, 'resetPassword']);
 $router->get('/2fa/verify', [TwoFactorController::class, 'showVerify']);
 $router->post('/2fa/verify', [TwoFactorController::class, 'verify']);
 $router->post('/2fa/send-email-code', [TwoFactorController::class, 'sendEmailCode']);
+
+// Read-only API (token auth, no session)
+$router->get('/api/v1/stats', [ApiController::class, 'stats']);
+$router->get('/api/v1/domains', [ApiController::class, 'domains']);
+$router->get('/api/v1/domains/{id}', [ApiController::class, 'domain']);
+$router->get('/api/v1/ssl', [ApiController::class, 'ssl']);
 
 // Protected routes - require authentication
 Auth::require();
@@ -181,6 +188,10 @@ $router->post('/profile/passkeys/options', [PasskeyController::class, 'registerO
 $router->post('/profile/passkeys', [PasskeyController::class, 'register']);
 $router->post('/profile/passkeys/{id}/rename', [PasskeyController::class, 'rename']);
 $router->post('/profile/passkeys/{id}/delete', [PasskeyController::class, 'delete']);
+
+// API tokens
+$router->post('/profile/api-tokens', [ProfileController::class, 'createApiToken']);
+$router->post('/profile/api-tokens/{id}/delete', [ProfileController::class, 'deleteApiToken']);
 
 // Two-Factor Authentication management (protected)
 $router->get('/2fa/setup', [TwoFactorController::class, 'setup']);

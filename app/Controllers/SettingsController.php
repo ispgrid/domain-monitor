@@ -39,6 +39,9 @@ class SettingsController extends Controller
         $settings = $this->settingModel->getAllAsKeyValue();
         $appSettings = $this->settingModel->getAppSettings();
         $emailSettings = $this->settingModel->getEmailSettings();
+        // The saved SMTP password never goes back to the browser
+        $emailSettings['mail_password_set'] = ($emailSettings['mail_password'] ?? '') !== '';
+        $emailSettings['mail_password'] = '';
         $captchaSettings = $this->settingModel->getCaptchaSettings();
         $twoFactorSettings = $this->settingModel->getTwoFactorSettings();
         $isolationSettings = $this->getIsolationSettings();
@@ -457,6 +460,11 @@ class SettingsController extends Controller
                 'mail_verify_certificate' => isset($_POST['mail_verify_certificate']) ? '1' : '0'
             ];
 
+            // A blank password keeps the saved one, unless removing it was ticked
+            if ($emailSettings['mail_password'] === '' && !isset($_POST['mail_password_clear'])) {
+                unset($emailSettings['mail_password']);
+            }
+
             // Validate required fields
             if (empty($emailSettings['mail_host'])) {
                 $_SESSION['error'] = 'Mail host is required';
@@ -648,7 +656,8 @@ class SettingsController extends Controller
                 'two_factor_policy' => $twoFactorPolicy,
                 'two_factor_rate_limit_minutes' => $rateLimitMinutes,
                 'two_factor_email_code_expiry_minutes' => $emailCodeExpiryMinutes,
-                'passkeys_enabled' => isset($_POST['passkeys_enabled']) ? '1' : '0'
+                'passkeys_enabled' => isset($_POST['passkeys_enabled']) ? '1' : '0',
+                'api_enabled' => isset($_POST['api_enabled']) ? '1' : '0'
             ];
 
             $this->settingModel->updateTwoFactorSettings($twoFactorSettings);

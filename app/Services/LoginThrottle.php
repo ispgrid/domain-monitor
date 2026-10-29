@@ -3,7 +3,7 @@
 namespace App\Services;
 
 /**
- * Limits failed sign-ins and password reset requests.
+ * Limits failed sign-ins, password reset requests and wrong API tokens.
  *
  * Counts by REMOTE_ADDR only: forwarded headers can be faked to dodge the limit.
  * Behind a reverse proxy every visitor shares the proxy's address, so the per-IP
@@ -23,6 +23,9 @@ class LoginThrottle
     // Reset emails for one address, and reset requests from one IP
     public const RESET_PER_EMAIL = 3;
     public const RESET_PER_IP = 10;
+
+    // Requests with a wrong or expired API token from one IP
+    public const API_PER_IP = 20;
 
     private \PDO $db;
 
@@ -92,6 +95,19 @@ class LoginThrottle
     public function recordReset(string $email, string $ip): void
     {
         $this->record('reset', $ip, $this->normalise($email));
+    }
+
+    /**
+     * Minutes until this IP may try the API again after wrong tokens, or 0 when allowed
+     */
+    public function apiBlockedFor(string $ip): int
+    {
+        return $this->blockedFor('api', self::API_PER_IP, $ip);
+    }
+
+    public function recordApiFailure(string $ip): void
+    {
+        $this->record('api', $ip, '');
     }
 
     private function blockedFor(string $type, int $limit, string $ip, ?string $identifier = null): int

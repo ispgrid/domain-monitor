@@ -127,6 +127,24 @@ CREATE TABLE IF NOT EXISTS user_passkeys (
     INDEX idx_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- API tokens. Only a SHA-256 hash of the token is stored; the token is shown once when created.
+CREATE TABLE IF NOT EXISTS api_tokens (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    token_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    token_hint VARCHAR(16) NOT NULL COMMENT 'Start of the token, to tell tokens apart',
+    expires_at DATETIME NULL,
+    last_used_at DATETIME NULL,
+    last_used_ip VARCHAR(45) NULL,
+    window_start DATETIME NULL COMMENT 'Start of the current rate limit minute',
+    window_count INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY uniq_api_token_hash (token_hash),
+    INDEX idx_api_tokens_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Two-factor authentication email codes table
 CREATE TABLE IF NOT EXISTS two_factor_email_codes (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -542,7 +560,7 @@ INSERT INTO settings (setting_key, setting_value, `type`, `description`) VALUES
 ('app_name', 'Domain Monitor', 'string', 'Application name'),
 ('app_url', 'http://localhost:8000', 'string', 'Application URL'),
 ('app_timezone', 'UTC', 'string', 'Application timezone'),
-('app_version', '1.5.2','string', 'Application version number'),
+('app_version', '1.6.0','string', 'Application version number'),
 
 -- Email settings
 ('mail_host', 'smtp.mailtrap.io', 'string', 'SMTP server host'),
@@ -576,6 +594,7 @@ INSERT INTO settings (setting_key, setting_value, `type`, `description`) VALUES
 ('two_factor_rate_limit_minutes', '15', 'string', 'Rate limit for 2FA attempts in minutes'),
 ('two_factor_email_code_expiry_minutes', '10', 'string', 'Email code expiry time in minutes'),
 ('passkeys_enabled', '1', 'boolean', 'Allow users to sign in with passkeys'),
+('api_enabled', '1', 'boolean', 'Allow users to create API tokens and use the read-only API'),
 
 -- User isolation settings
 ('user_isolation_mode', 'shared', 'string', 'User data visibility mode: shared (all users see all data) or isolated (users see only their own data)'),

@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use Core\Controller;
 use Core\Auth;
+use App\Models\ApiToken;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Models\SessionManager;
@@ -93,6 +94,10 @@ class ProfileController extends Controller
 
         $passkeyService = new \App\Services\PasskeyService();
 
+        // A new API token is shown once, right after it was created
+        $newApiToken = $_SESSION['new_api_token'] ?? null;
+        unset($_SESSION['new_api_token']);
+
         $this->view('profile/index', [
             'user' => $user,
             'sessions' => $formattedSessions,
@@ -102,6 +107,10 @@ class ProfileController extends Controller
             'passkeys' => (new \App\Models\Passkey())->getByUserId($userId),
             'passkeysEnabled' => $passkeyService->isEnabled(),
             'passkeyRpId' => $passkeyService->getRpId(),
+            'apiTokens' => $this->getApiTokens($userId),
+            'apiEnabled' => (new \App\Models\Setting())->getValue('api_enabled', '1') === '1',
+            'newApiToken' => $newApiToken,
+            'appUrl' => rtrim((new \App\Models\Setting())->getValue('app_url', ''), '/'),
             'title' => 'My Profile'
         ]);
     }
@@ -661,5 +670,80 @@ class ProfileController extends Controller
         }
 
         $this->redirect('/profile');
+    }
+
+    /**
+     * Create an API token; it is shown once on the next page load
+     */
+    public function createApiToken()
+    {
+        $this->verifyCsrf('/profile#api');
+
+        $userId = Auth::id();
+        $tokenModel = new ApiToken();
+
+        if ((new \App\Models\Setting())->getValue('api_enabled', '1') !== '1') {
+            $_SESSION['error'] = 'The API has been turned off by the administrator';
+            $this->redirect('/profile#api');
+            return;
+        }
+
+        $name = trim($_POST['name'] ?? '');
+        if ($name === '' || mb_strlen($name) > 100) {
+            $_SESSION['error'] = 'Give the token a name of up to 100 characters';
+            $this->redirect('/profile#api');
+            return;
+        }
+
+        $expiresIn = (int)($_POST['expires_in'] ?? 0);
+        if (!in_array($expiresIn, [0, 30, 90, 365], true)) {
+            $expiresIn = 90;
+        }
+
+        try {
+            if ($tokenModel->countForUser($userId) >= ApiToken::MAX_PER_USER) {
+                $_SESSION['error'] = 'You have reached the limit of ' . ApiToken::MAX_PER_USER . ' API tokens. Delete one first.';
+                $this->redirect('/profile#api');
+                return;
+            }
+
+            $_SESSION['new_api_token'] = $tokenModel->createForUser($userId, $name, $expiresIn ?: null);
+        } catch (\PDOException $e) {
+            // Table missing until the update's migration has run
+            $_SESSION['error'] = 'API tokens are not available yet. An admin needs to finish the update under Settings → Updates.';
+            $this->redirect('/profile#api');
+            return;
+        }
+
+        AuditLog::record('profile.api_token_created', 'Created API token "' . $name . '"');
+        $_SESSION['success'] = 'API token created. Copy it now, it will not be shown again.';
+        $this->redirect('/profile#api');
+    }
+
+    public function deleteApiToken($params = [])
+    {
+        $this->verifyCsrf('/profile#api');
+
+        $userId = Auth::id();
+        $tokenModel = new ApiToken();
+        $token = $tokenModel->findForUser((int)($params['id'] ?? 0), $userId);
+
+        if ($token && $tokenModel->deleteForUser((int)$token['id'], $userId)) {
+            AuditLog::record('profile.api_token_deleted', 'Deleted API token "' . $token['name'] . '"');
+            $_SESSION['success'] = 'API token deleted. Anything using it can no longer reach the API.';
+        } else {
+            $_SESSION['error'] = 'API token not found';
+        }
+
+        $this->redirect('/profile#api');
+    }
+
+    private function getApiTokens(int $userId): array
+    {
+        try {
+            return (new ApiToken())->getByUserId($userId);
+        } catch (\PDOException $e) {
+            return [];
+        }
     }
 }

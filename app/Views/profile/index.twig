@@ -79,6 +79,10 @@
                     <i class="fas fa-fingerprint w-5 mr-3 text-sm"></i>
                     <span>Passkeys</span>
                 </button>
+                <button onclick="showSection('api')" id="nav-api" class="nav-item w-full flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors mb-1">
+                    <i class="fas fa-code w-5 mr-3 text-sm"></i>
+                    <span>API Tokens</span>
+                </button>
                 <button onclick="showSection('sessions')" id="nav-sessions" class="nav-item w-full flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors mb-1">
                     <i class="fas fa-laptop w-5 mr-3 text-sm"></i>
                     <span>Active Sessions</span>
@@ -592,6 +596,124 @@
             </div>
         </div>
 
+        <!-- API Tokens Section -->
+        <div id="section-api" class="content-section hidden">
+            <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">API Tokens</h3>
+                    <p class="text-sm text-gray-600 dark:text-slate-400 mt-1">Read your domains, SSL certificates and counts from scripts and dashboards</p>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    {% if newApiToken %}
+                        <div class="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-lg p-4">
+                            <p class="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                                <i class="fas fa-key text-green-600 dark:text-green-400 mr-1"></i>
+                                Your new token. Copy it now: it won't be shown again.
+                            </p>
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <input type="text" id="newApiToken" value="{{ newApiToken }}" readonly
+                                       class="flex-1 px-3 py-2 font-mono text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                       onclick="this.select()">
+                                <button type="button" onclick="copyApiToken(this)" class="inline-flex items-center justify-center px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary-dark transition-colors font-medium">
+                                    <i class="fas fa-copy mr-2"></i>
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if not apiEnabled %}
+                        <div class="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg p-4">
+                            <div class="flex items-center">
+                                <i class="fas fa-ban text-gray-400 dark:text-slate-500 text-xl mr-3"></i>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white">API Disabled</p>
+                                    <p class="text-sm text-gray-600 dark:text-slate-400 mt-1">The API has been turned off by the administrator. Existing tokens don't work until it is turned back on.</p>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <form method="POST" action="/profile/api-tokens" class="flex flex-col sm:flex-row gap-3">
+                            {{ csrf_field() }}
+                            <input type="text" name="name" maxlength="100" required
+                                   placeholder="Name, e.g. Homepage dashboard"
+                                   class="flex-1 px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                            <select name="expires_in" class="px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                                <option value="30">Expires in 30 days</option>
+                                <option value="90" selected>Expires in 90 days</option>
+                                <option value="365">Expires in 1 year</option>
+                                <option value="0">Never expires</option>
+                            </select>
+                            <button type="submit" class="inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white text-sm rounded-lg hover:bg-primary-dark transition-colors font-medium">
+                                <i class="fas fa-plus mr-2"></i>
+                                Create Token
+                            </button>
+                        </form>
+                    {% endif %}
+
+                    {% if apiTokens is not empty %}
+                        <div class="space-y-3">
+                            {% for token in apiTokens %}
+                                <div class="flex items-start justify-between p-4 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg">
+                                    <div class="flex items-start space-x-3 flex-1 min-w-0">
+                                        <div class="w-10 h-10 bg-indigo-100 dark:bg-indigo-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                                            <i class="fas fa-code text-indigo-600 dark:text-indigo-400"></i>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <h4 class="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                                                {{ token.name }}
+                                                <span class="ml-1 font-mono text-xs font-normal text-gray-500 dark:text-slate-400">{{ token.token_hint }}…</span>
+                                                {% if token.is_expired %}
+                                                    <span class="ml-1 px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400">Expired</span>
+                                                {% endif %}
+                                            </h4>
+                                            <div class="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-slate-400 mt-1">
+                                                <span title="{{ token.created_at|date('M j, Y H:i') }}">
+                                                    <i class="fas fa-plus-circle mr-1"></i>
+                                                    Created {{ token.created_at|date('M j, Y') }}
+                                                </span>
+                                                <span>
+                                                    <i class="fas fa-hourglass-half mr-1"></i>
+                                                    {% if token.expires_at %}{{ token.is_expired ? 'Expired' : 'Expires' }} {{ token.expires_at|date('M j, Y') }}{% else %}Never expires{% endif %}
+                                                </span>
+                                                <span>
+                                                    <i class="fas fa-clock mr-1"></i>
+                                                    {% if token.last_used_at %}Last used {{ token.last_used_at|date('M j, Y H:i') }}{% if token.last_used_ip %} from {{ token.last_used_ip }}{% endif %}{% else %}Never used{% endif %}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <form method="POST" action="/profile/api-tokens/{{ token.id }}/delete" class="ml-3" onsubmit="return confirmSubmit(event, 'Delete this token? Anything using it will stop working.', { title: 'Delete API Token', icon: 'fa-code text-red-500' })">
+                                        {{ csrf_field() }}
+                                        <button type="submit" class="flex items-center justify-center w-8 h-8 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-600 hover:text-white dark:hover:bg-red-600 transition-colors" title="Delete token">
+                                            <i class="fas fa-trash-alt text-xs"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% elseif apiEnabled %}
+                        <div class="text-center py-6">
+                            <i class="fas fa-code text-gray-300 dark:text-slate-600 text-4xl mb-3"></i>
+                            <p class="text-sm text-gray-600 dark:text-slate-400">No API tokens yet</p>
+                        </div>
+                    {% endif %}
+
+                    <div class="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-lg p-3">
+                        <p class="text-xs text-gray-600 dark:text-slate-400 mb-2">
+                            <i class="fas fa-info-circle text-blue-500 dark:text-blue-400 mr-1"></i>
+                            The API is read-only and sees the same domains you do. Send the token in a header with each request:
+                        </p>
+                        <pre class="text-xs font-mono bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded p-2 overflow-x-auto text-gray-800 dark:text-slate-200">curl -H "Authorization: Bearer YOUR_TOKEN" {{ appUrl ?: '' }}/api/v1/stats</pre>
+                        <p class="text-xs text-gray-600 dark:text-slate-400 mt-2">
+                            Endpoints: <code>/api/v1/stats</code>, <code>/api/v1/domains</code>, <code>/api/v1/domains/{id or name}</code>, <code>/api/v1/ssl</code>. Limit: 120 requests per minute per token.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Active Sessions Section -->
         <div id="section-sessions" class="content-section hidden">
             <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
@@ -812,7 +934,7 @@ function showSection(section) {
 
 document.addEventListener('DOMContentLoaded', function() {
     const hash = window.location.hash.substring(1);
-    const validSections = ['profile', 'security', 'twofactor', 'passkeys', 'sessions'{% if user.role != 'admin' %}, 'danger'{% endif %}];
+    const validSections = ['profile', 'security', 'twofactor', 'passkeys', 'api', 'sessions'{% if user.role != 'admin' %}, 'danger'{% endif %}];
     
     if (hash && validSections.includes(hash)) {
         showSection(hash);
@@ -841,6 +963,18 @@ function hideDisable2FAModal() {
 function toggleRename(id) {
     document.getElementById('passkey-name-' + id).classList.toggle('hidden');
     document.getElementById('passkey-rename-' + id).classList.toggle('hidden');
+}
+
+function copyApiToken(button) {
+    const input = document.getElementById('newApiToken');
+    input.select();
+    const done = () => { button.innerHTML = '<i class="fas fa-check mr-2"></i>Copied'; };
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(input.value).then(done);
+    } else {
+        document.execCommand('copy');
+        done();
+    }
 }
 </script>
 {% if passkeysEnabled %}

@@ -36,6 +36,7 @@ A modern PHP MVC application for monitoring domain expiration dates and sending 
 - 🌍 **RDAP Support** - Modern protocol for faster, structured domain data
 - 🏴 **Geolocation Tracking** - See location, ISP, and device info for all sessions
 - 📜 **Logs** - Cron runs (with Run now), updates, commands, sent alerts, activity, errors and log files in one place, with alerts when a cron job is late or failing (admins only)
+- 🔌 **Read-only API** - Domains, SSL certificates and counts as JSON for dashboards and scripts, with per-user tokens ([details](#-api))
 
 ## 📋 Requirements
 
@@ -561,6 +562,54 @@ Access your profile settings via the top-right user menu:
 - **Instant Termination**: Deleted sessions are logged out immediately
 
 All settings are stored in the database and can be updated at any time through the web interface.
+
+## 🔌 API
+
+A read-only JSON API for dashboards, scripts and monitoring tools.
+
+1. Go to **Profile → API Tokens**, give the token a name, pick an expiry and click **Create Token**.
+2. Copy the token (it starts with `dm_`). It is shown only once.
+3. Send it with each request:
+
+```bash
+curl -H "Authorization: Bearer dm_your_token" https://your-domain.com/api/v1/stats
+```
+
+`X-API-Key: dm_your_token` works too.
+
+| Endpoint | Returns |
+|----------|---------|
+| `GET /api/v1/stats` | Domain counts (total, active, expiring soon, expired, inactive, ...) and SSL counts |
+| `GET /api/v1/domains` | Domains, 50 per page. Query options: `status`, `group` (id), `tag` (name), `search`, `sort` (`domain_name`, `expiration_date`, `status`, `registrar`, `created_at`), `order` (`asc`/`desc`), `page`, `per_page` (up to 100) |
+| `GET /api/v1/domains/{id or name}` | One domain, e.g. `/api/v1/domains/example.com`, with nameservers, registry statuses and SSL certificates |
+| `GET /api/v1/ssl` | SSL certificates of active domains with SSL monitoring on. Query options: `status` (`valid`, `expiring`, `expired`, `invalid`), `domain` (id) |
+
+- The API sees the same domains as the token's user: all domains in shared mode, only their own in isolated mode.
+- Each token can make 120 requests per minute. An IP address that sends 20 wrong tokens within 15 minutes is paused for 15 minutes.
+- Errors come back as `{"error": {"code": 401, "message": "..."}}`.
+- Admins can turn the API off under **Settings → Security → Allow API Access**, which stops all tokens.
+- On Apache, the bundled `public/.htaccess` passes the `Authorization` header to PHP. If your server still drops it, use the `X-API-Key` header.
+
+Example for a [Homepage](https://gethomepage.dev) dashboard (`services.yaml`):
+
+```yaml
+- Domain Monitor:
+    href: https://your-domain.com
+    widget:
+      type: customapi
+      url: https://your-domain.com/api/v1/stats
+      headers:
+        Authorization: Bearer dm_your_token
+      mappings:
+        - field: { data: { domains: total } }
+          label: Domains
+        - field: { data: { domains: expiring_soon } }
+          label: Expiring
+        - field: { data: { domains: expired } }
+          label: Expired
+        - field: { data: { ssl: expiring } }
+          label: SSL expiring
+```
 
 ## 📁 Project Structure
 

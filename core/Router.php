@@ -55,8 +55,12 @@ class Router
         }
 
         if ($callback === null) {
+            if ($path === '/api/v1' || str_starts_with($path, '/api/v1/')) {
+                \App\Controllers\ApiController::notFound();
+            }
+
             http_response_code(404);
-            
+
             // Log 404 errors for debugging
             try {
                 $logger = new \App\Services\Logger('router');

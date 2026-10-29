@@ -167,6 +167,25 @@ class Domain extends Model
     }
 
     /**
+     * Find domain by name with user isolation support
+     */
+    public function findByNameWithIsolation(string $domainName, ?int $userId = null): ?array
+    {
+        $sql = "SELECT * FROM domains WHERE domain_name = ?";
+        $params = [$domainName];
+
+        if ($userId) {
+            $sql .= " AND user_id = ?";
+            $params[] = $userId;
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $result = $stmt->fetch();
+        return $result ?: null;
+    }
+
+    /**
      * Check if domain exists
      */
     public function existsByDomain(string $domainName): bool

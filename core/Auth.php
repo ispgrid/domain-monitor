@@ -62,7 +62,8 @@ class Auth
             '/resend-verification',
             '/install',
             '/2fa/verify',
-            '/2fa/send-email-code'
+            '/2fa/send-email-code',
+            '/api/v1' // token auth in ApiController
         ];
         
         // Don't redirect if on a public path
