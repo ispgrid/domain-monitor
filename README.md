@@ -207,6 +207,45 @@ php -S localhost:8000 -t public
 
 Then visit: `http://localhost:8000`
 
+## 🐳 Docker
+
+A ready-made image is published for each release at `ghcr.io/ispgrid/domain-monitor` (amd64 and arm64). It has the app, its PHP packages and the cron jobs built in.
+
+1. In an empty folder on the server, save [`docker-compose.yml`](docker-compose.yml) from this repo.
+2. Next to it, create a file named `.env` with two passwords:
+   ```
+   DB_PASSWORD=change-me
+   DB_ROOT_PASSWORD=change-me-too
+   ```
+3. Start it, then open `http://SERVER_IP:8080` to run the installer:
+   ```bash
+   docker compose up -d
+   ```
+
+**Updating:** `docker compose pull && docker compose up -d`, then open **Database update** if the new version asks for it. **Settings → Updates** shows these steps instead of the update button, since the image is replaced as a whole. Back up the database first:
+
+```bash
+docker compose exec db sh -c 'mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE"' > backup.sql
+```
+
+To stay on a version, use its tag instead of `latest`, for example `ghcr.io/ispgrid/domain-monitor:1.9` (newest 1.9.x) or `:1.9.0`.
+
+**Your data:** settings (`.env`, with the encryption key the installer creates), uploads, logs and caches live in the `/data` volume, the database in the `db` volume. Both survive updates; `docker compose down -v` deletes them.
+
+**Cron jobs:** none to set up. A scheduler in the container looks every 15 minutes and starts the domain, SSL and DNS checks when their interval in Settings is due. Runs show in **Logs → Cron Runs**.
+
+**Logs → Container** shows the container's startup log, the scheduler and web server errors. The app can't read `docker compose logs` itself (that needs the Docker socket, which means root on the host), so if the container won't start, check `docker compose logs app` on the server.
+
+| Setting (environment) | What it does |
+|---|---|
+| `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | Database connection. Written to `.env` on every start, so changes in `docker-compose.yml` apply |
+| `TRUSTED_PROXIES` | Behind a reverse proxy, its address or network (e.g. `172.16.0.0/12`). Sign-in limits and logs then see the visitor's IP instead of the proxy's, and HTTPS is detected from `X-Forwarded-Proto` |
+| `ACCESS_LOG_FILE=true` | Also keep the web access log in **Logs → Container**. Off by default because it holds visitor IPs |
+| `SCHEDULER=false` | Turn off the built-in scheduler, if you run `cron/scheduler.php` from somewhere else |
+| `TZ` | Container timezone. The app itself uses the one in **Settings → Application** |
+
+Put the container behind a reverse proxy (Caddy, nginx, Traefik) for HTTPS; passkeys need it. The older `domain-monitor-docker/` folder (bootstrap script with a git clone) still works, but new installs should use the image.
+
 ## 🔁 Switching from Hosteroid/domain-monitor
 
 If you run the original [Hosteroid/domain-monitor](https://github.com/Hosteroid/domain-monitor) (1.1.x), its built-in updater only checks Hosteroid's repository, so **Settings → Updates will never offer this fork's releases**. Switch once by hand with the steps below. After that, updates come from this fork through **Settings → Updates**.
@@ -442,6 +481,16 @@ Add this line (or copy from Settings → System):
 ```cron
 0 9 * * * /usr/bin/php /your/actual/path/cron/check_domains.php
 ```
+
+### One line for all checks
+
+`cron/scheduler.php` starts the domain, SSL and DNS checks when their interval in Settings is due, so a single line every 15 minutes can replace the separate ones (the Docker image uses it):
+
+```cron
+0,15,30,45 * * * * /usr/bin/php /your/actual/path/cron/scheduler.php
+```
+
+Run `php cron/scheduler.php --verbose` to see when each check is next due.
 
 ### Windows
 

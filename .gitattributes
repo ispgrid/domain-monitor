@@ -1,3 +1,12 @@
+# Run inside Linux containers: keep LF endings even on Windows checkouts
+Dockerfile text eol=lf
+docker/** text eol=lf
+
 # Not shipped in update or release zips
 .github/screenshots export-ignore
 .github/screenshots/** export-ignore
+Dockerfile export-ignore
+.dockerignore export-ignore
+docker-compose.yml export-ignore
+docker export-ignore
+docker/** export-ignore

@@ -136,6 +136,7 @@ class TwigService
                 'avatar'              => $avatar,
                 'currentUrl'          => $_SERVER['REQUEST_URI'] ?? '/',
                 'appEnv'              => $_ENV['APP_ENV'] ?? 'development',
+                'isDocker'            => \App\Helpers\DeploymentHelper::isDocker(),
             ];
         } catch (\Throwable $e) {
             return [
@@ -155,6 +156,7 @@ class TwigService
                 'avatar'              => null,
                 'currentUrl'          => $_SERVER['REQUEST_URI'] ?? '/',
                 'appEnv'              => $_ENV['APP_ENV'] ?? 'development',
+                'isDocker'            => \App\Helpers\DeploymentHelper::isDocker(),
             ];
         }
     }

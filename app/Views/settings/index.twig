@@ -924,6 +924,24 @@
         </div>
 
         <div class="p-6 space-y-6">
+            {% if isDocker %}
+            <!-- Docker: cron runs inside the container -->
+            <div>
+                <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-2 flex items-center">
+                    <i class="fab fa-docker text-blue-500 dark:text-blue-400 mr-2"></i>
+                    Cron Jobs
+                </h4>
+                <div class="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-lg p-4 text-sm text-gray-700 dark:text-slate-300 space-y-2">
+                    <p>This install runs the Docker image, so no crontab is needed. A scheduler inside the container looks every 15 minutes and starts each check when it is due:</p>
+                    <ul class="list-disc ml-5 space-y-0.5">
+                        <li>Domain / WHOIS check: every {{ currentCheckInterval }}h (Monitoring tab)</li>
+                        <li>SSL certificate check: every {{ currentSslCheckInterval }}h</li>
+                        <li>DNS record check: every {{ settings.dns_check_interval_hours|default('24') }}h</li>
+                    </ul>
+                    <p>Each run shows up in <a href="/logs/cron" class="text-primary hover:underline">Logs → Cron Runs</a>, and the scheduler's own output in <a href="/logs/container" class="text-primary hover:underline">Logs → Container</a>.</p>
+                </div>
+            </div>
+            {% else %}
             <!-- Cron Commands -->
             <div>
                 <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-2 flex items-center">
@@ -974,6 +992,7 @@
                 </div>
                 <p class="text-xs text-gray-500 dark:text-slate-400 mt-2">Update the paths to match your server installation</p>
             </div>
+            {% endif %}
 
             <!-- Last Cronjob Run -->
             <div>
@@ -1190,7 +1209,7 @@
                             <p class="text-sm font-semibold text-amber-900 dark:text-amber-400">Update available</p>
                             <p class="text-xs text-amber-700 dark:text-amber-300">
                                 {% if (cachedUpdateData.type|default('')) == 'release' %}
-                                    New release: v{{ cachedUpdateData.latest_version|default('') }} — click to view details and apply
+                                    New release: v{{ cachedUpdateData.latest_version|default('') }} — click to view details{{ isDocker ? '' : ' and apply' }}
                                 {% else %}
                                     {{ cachedUpdateData.commits_behind|default(0) }} new commit(s) — click to apply hotfix
                                 {% endif %}
@@ -1217,6 +1236,32 @@
         </div>
     </div>
 
+    {% if isDocker %}
+    <!-- Docker: updates come from a new image -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-6">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center"><i class="fab fa-docker text-blue-500 dark:text-blue-400 mr-2"></i>Updating the Docker image</h3>
+            <p class="text-sm text-gray-600 dark:text-slate-400 mt-1">This install runs the Docker image, so updates are installed by pulling the new image instead of from this page.</p>
+        </div>
+        <div class="p-6 space-y-4 text-sm text-gray-700 dark:text-slate-300">
+            <div>
+                <p class="mb-2">On the server, in the folder with your <code class="text-xs bg-gray-100 dark:bg-slate-700 px-1 rounded">docker-compose.yml</code>:</p>
+                <div class="bg-gray-900 text-gray-100 px-4 py-3 rounded-lg font-mono text-sm break-all">
+                    {% for cmd in ['docker compose pull', 'docker compose up -d'] %}<code class="block">{{ cmd }}</code>{% endfor %}
+                </div>
+            </div>
+            <p>Then open <a href="/install/update" class="text-primary hover:underline">Database update</a> if the new version asks for it. Your settings, uploads and logs are in the <code class="text-xs bg-gray-100 dark:bg-slate-700 px-1 rounded">/data</code> volume and are kept.</p>
+            <p>To go back to an older version, set the image tag in <code class="text-xs bg-gray-100 dark:bg-slate-700 px-1 rounded">docker-compose.yml</code> (for example <code class="text-xs bg-gray-100 dark:bg-slate-700 px-1 rounded">ghcr.io/ispgrid/domain-monitor:{{ appSettings.app_version }}</code>) and restore the database backup you made before updating.</p>
+            <div>
+                <p class="mb-2">Back up the database first (with the MariaDB container from the example compose file):</p>
+                <div class="bg-gray-900 text-gray-100 px-4 py-3 rounded-lg font-mono text-sm break-all">
+                    <code>docker compose exec db sh -c 'mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE"' &gt; backup.sql</code>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Update preferences (channel + badge) -->
     <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden mb-6">
         <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
@@ -1227,6 +1272,9 @@
         <form method="POST" action="/settings/updates/preferences" class="p-6">
             {{ csrf_field() }}
             <div class="space-y-4">
+                {% if isDocker %}
+                <p class="text-sm text-gray-600 dark:text-slate-400"><i class="fas fa-shield-alt text-green-600 dark:text-green-400 mr-1"></i>Update channel: <strong>Stable</strong>. Docker images are published for releases only.</p>
+                {% else %}
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Update Channel</label>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1269,6 +1317,7 @@
                             Commit tracking is not yet active. It will begin after the first update is applied through this system. Until then, only release updates will be detected.
                         </p>
                     </div>
+                {% endif %}
                 {% endif %}
 
                 <!-- Show update badge in top menu -->
@@ -1364,6 +1413,7 @@
 
 <script>
 window.__cachedUpdateData = {{ cachedUpdateData ? cachedUpdateData|json_encode|raw : 'null' }};
+window.__isDocker = {{ isDocker ? 'true' : 'false' }};
 </script>
 <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"></script>
@@ -1602,7 +1652,9 @@ document.addEventListener('DOMContentLoaded', function() {
         var csrf = document.querySelector('input[name=csrf_token]') ? document.querySelector('input[name=csrf_token]').value : '';
         if (footerEl) {
             footerEl.className = 'px-4 py-3 flex-shrink-0 border-t rounded-b-xl ' + (isRelease ? 'bg-blue-100 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/20' : 'bg-amber-100 dark:bg-amber-500/20 border-amber-200 dark:border-amber-500/20');
-            if (isRelease) {
+            if (window.__isDocker) {
+                footerEl.innerHTML = '<p class="text-sm text-gray-700 dark:text-slate-300"><i class="fab fa-docker mr-1"></i>Update with <code class="text-xs bg-white/60 dark:bg-slate-800 px-1 rounded">docker compose pull &amp;&amp; docker compose up -d</code> on the server. See the steps on this page.</p>';
+            } else if (isRelease) {
                 footerEl.innerHTML = '<form method="POST" action="/settings/updates/apply" onsubmit="return confirmSubmit(event, \'Apply update to v' + escapeHtml(data.latest_version || '') + '? A backup will be created before updating.\', { title: \'Update\', icon: \'fa-download text-blue-500\', confirmText: \'Update\', confirmClass: \'bg-blue-600 hover:bg-blue-700\' })">' +
                     (csrf ? '<input type="hidden" name="csrf_token" value="' + escapeHtml(csrf) + '">' : '') +
                     '<input type="hidden" name="update_type" value="release">' +

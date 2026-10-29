@@ -251,6 +251,7 @@ $router->get('/logs/files', [LogsController::class, 'files']);
 $router->get('/logs/files/view', [LogsController::class, 'fileView']);
 $router->get('/logs/files/download', [LogsController::class, 'fileDownload']);
 $router->post('/logs/files/delete', [LogsController::class, 'fileDelete']);
+$router->get('/logs/container', [LogsController::class, 'container']);
 
 // Error Logs (Admin Only, shown as the Errors tab of Logs)
 $router->get('/errors', [ErrorLogController::class, 'index']);

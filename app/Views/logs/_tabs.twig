@@ -9,6 +9,9 @@
     {key: 'errors', label: 'Errors', icon: 'fa-bug', url: '/errors'},
     {key: 'files', label: 'Files', icon: 'fa-file-lines', url: '/logs/files'}
 ] %}
+{% if isDocker|default(false) %}
+    {% set logTabs = logTabs|merge([{key: 'container', label: 'Container', icon: 'fa-box', url: '/logs/container'}]) %}
+{% endif %}
 <div class="mb-5">
     <nav class="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-slate-700 -mx-1 px-1" aria-label="Log sections">
         {% for tab in logTabs %}

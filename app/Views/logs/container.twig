@@ -1,0 +1,85 @@
+{% extends 'layout/base.twig' %}
+{% import 'logs/_macros.twig' as m %}
+
+{% set title = 'Container - Logs' %}
+{% set pageTitle = 'Logs' %}
+
+{% block content %}
+{% include 'logs/_tabs.twig' %}
+
+<div class="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-lg p-4 mb-4 text-sm text-gray-700 dark:text-slate-300">
+    <i class="fab fa-docker text-blue-500 dark:text-blue-400 mr-1"></i>
+    The container writes these logs to the <code class="text-xs bg-white/60 dark:bg-slate-800 px-1 rounded">/data</code> volume as well as to <code class="text-xs bg-white/60 dark:bg-slate-800 px-1 rounded">docker compose logs</code>.
+    If the container stops before the web server starts, only <code class="text-xs bg-white/60 dark:bg-slate-800 px-1 rounded">docker compose logs</code> on the server shows why. Database container logs are not shown here.
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+    {% for log in logs %}
+    <a href="/logs/container?log={{ log.key }}" class="block p-4 rounded-lg border transition-colors
+        {{ selected.key == log.key ? 'border-primary bg-blue-50/60 dark:bg-blue-500/10' : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-500' }}"
+        {{ selected.key == log.key ? 'aria-current="page"' : '' }}>
+        <p class="text-sm font-semibold text-gray-900 dark:text-white"><i class="fas {{ log.icon }} text-xs text-gray-500 dark:text-slate-400 mr-1.5"></i>{{ log.label }}</p>
+        <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">
+            {% if log.exists %}{{ log.size|format_bytes }} · {{ log.modified|date('M d, H:i') }}{% else %}Not written yet{% endif %}
+        </p>
+    </a>
+    {% endfor %}
+</div>
+
+<form method="GET" action="/logs/container" class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 mb-4 flex flex-wrap items-end gap-3">
+    <input type="hidden" name="log" value="{{ selected.key }}">
+    <div>
+        <label class="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Level</label>
+        <select name="level" class="{{ m.select_class() }}">
+            <option value="">All lines</option>
+            <option value="INFO" {{ filters.level == 'INFO' ? 'selected' : '' }}>Info and above</option>
+            <option value="WARNING" {{ filters.level == 'WARNING' ? 'selected' : '' }}>Warnings and errors</option>
+            <option value="ERROR" {{ filters.level == 'ERROR' ? 'selected' : '' }}>Errors only</option>
+        </select>
+    </div>
+    <div>
+        <label class="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Lines</label>
+        <select name="lines" class="{{ m.select_class() }}">
+            {% for n in [100, 500, 2000, 5000] %}<option value="{{ n }}" {{ filters.lines == n ? 'selected' : '' }}>Last {{ n }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="flex-1 min-w-[12rem]">
+        <label class="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Search</label>
+        <input type="text" name="q" value="{{ filters.q }}" placeholder="Text to find" class="w-full {{ m.select_class() }}">
+    </div>
+    <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark text-sm font-medium"><i class="fas fa-filter mr-2"></i>Apply</button>
+    {% if selected.exists %}
+    <a href="/logs/files/download?file={{ selected.file|url_encode }}" class="px-3 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-sm font-medium"><i class="fas fa-download mr-1"></i>Download</a>
+    {% endif %}
+</form>
+
+<div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+    <div class="px-5 py-3 border-b border-gray-200 dark:border-slate-700">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <h2 class="text-sm font-semibold text-gray-900 dark:text-white">{{ selected.label }} <span class="font-mono font-normal text-xs text-gray-500 dark:text-slate-400 ml-1">{{ selected.file }}</span></h2>
+            {% if selected.exists %}
+            <p class="text-xs text-gray-500 dark:text-slate-400">
+                {{ content.lines|length }} line(s){{ content.truncated ? ', showing the newest' : '' }} · kept under {{ maxMb }} MB
+            </p>
+            {% endif %}
+        </div>
+        <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">{{ selected.description }}</p>
+    </div>
+    {% if content.lines is not empty %}
+    <pre id="logOutput" class="p-4 text-xs leading-5 font-mono bg-gray-50 dark:bg-slate-900 overflow-auto max-h-[75vh] whitespace-pre-wrap break-words">{% for line in content.lines %}<span class="{{ line.level in ['ERROR', 'CRITICAL'] ? 'text-red-700 dark:text-red-400' : (line.level == 'WARNING' ? 'text-amber-700 dark:text-amber-400' : (line.level == 'DEBUG' ? 'text-gray-500 dark:text-slate-500' : 'text-gray-800 dark:text-slate-200')) }}">{{ line.text }}</span>
+{% endfor %}</pre>
+    {% elseif not selected.exists %}
+    {{ m.empty_state('box-open', 'Not written yet', selected.key == 'access' ? 'Set ACCESS_LOG_FILE=true for the container to keep the access log here.' : 'The container has not written this log yet.') }}
+    {% else %}
+    {{ m.empty_state('search', 'No lines', filters.level or filters.q ? 'No lines match these filters in the part of the file that was read.' : 'This file is empty.') }}
+    {% endif %}
+</div>
+<p class="mt-3 text-xs text-gray-500 dark:text-slate-400"><i class="fas fa-shield-alt mr-1"></i>Passwords, tokens and webhook secrets are replaced with *** when logs are viewed or downloaded here.</p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const logOutput = document.getElementById('logOutput');
+if (logOutput) logOutput.scrollTop = logOutput.scrollHeight;
+</script>
+{% endblock %}

@@ -9,14 +9,17 @@ use App\Models\CommandRun;
 use App\Models\CronRun;
 use App\Models\ErrorLog;
 use App\Models\UpdateHistory;
+use App\Helpers\DeploymentHelper;
 use App\Services\CommandRunner;
+use App\Services\ContainerLogService;
 use App\Services\CronMonitor;
 use App\Services\LogFileService;
 use App\Services\LogRetention;
 
 /**
  * Logs area (admin only): overview, cron runs, updates, commands,
- * notifications sent, activity and log files. Errors stay at /errors.
+ * notifications sent, activity, log files and, on the Docker image, the
+ * container logs. Errors stay at /errors.
  */
 class LogsController extends Controller
 {
@@ -423,6 +426,45 @@ class LogsController extends Controller
 
         $_SESSION['success'] = "Deleted {$deleted} log file(s)";
         $this->redirect('/logs/files');
+    }
+
+    // ------------------------------------------------------------------
+    // Container (Docker image only)
+    // ------------------------------------------------------------------
+
+    public function container()
+    {
+        if (!DeploymentHelper::isDocker()) {
+            $this->redirect('/logs');
+        }
+
+        $service = new ContainerLogService();
+        $logs = [];
+        foreach (ContainerLogService::FILES as $key => $info) {
+            $path = $service->path($key);
+            $logs[$key] = array_merge($info, [
+                'key' => $key,
+                'exists' => $path !== null,
+                'size' => $path ? (int)filesize($path) : 0,
+                'modified' => $path ? (int)filemtime($path) : null,
+            ]);
+        }
+
+        $selected = $this->pick($_GET['log'] ?? '', array_keys($logs)) ?: 'startup';
+        $lines = (int)($_GET['lines'] ?? 500);
+        $lines = in_array($lines, [100, 500, 2000, 5000], true) ? $lines : 500;
+        $level = $this->pick(strtoupper($this->query('level')), ['INFO', 'WARNING', 'ERROR']);
+        $search = $this->query('q');
+
+        $path = $service->path($selected);
+        $this->view('logs/container', [
+            'activeTab' => 'container',
+            'logs' => $logs,
+            'selected' => $logs[$selected],
+            'content' => $path ? (new LogFileService())->read($path, $lines, $level, $search) : ['lines' => [], 'truncated' => false],
+            'filters' => ['log' => $selected, 'lines' => $lines, 'level' => $level, 'q' => $search],
+            'maxMb' => ContainerLogService::MAX_BYTES >> 20,
+        ]);
     }
 
     /**

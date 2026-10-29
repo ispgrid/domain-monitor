@@ -9,6 +9,7 @@ use App\Services\NotificationService;
 use App\Models\Setting;
 use App\Models\AuditLog;
 use App\Services\Logger;
+use App\Helpers\DeploymentHelper;
 
 class UpdateController extends Controller
 {
@@ -89,6 +90,10 @@ class UpdateController extends Controller
 
         // CSRF Protection
         $this->verifyCsrf('/settings#updates');
+
+        if ($this->refuseInDocker()) {
+            return;
+        }
 
         $type = $_POST['update_type'] ?? 'release';
 
@@ -181,6 +186,10 @@ class UpdateController extends Controller
         // CSRF Protection
         $this->verifyCsrf('/settings#updates');
 
+        if ($this->refuseInDocker()) {
+            return;
+        }
+
         $this->logger->info('Rollback requested by admin', [
             'user_id' => Auth::id(),
         ]);
@@ -223,7 +232,7 @@ class UpdateController extends Controller
 
         $this->verifyCsrf('/settings#updates');
 
-        $channel = $_POST['update_channel'] ?? 'stable';
+        $channel = DeploymentHelper::isDocker() ? 'stable' : ($_POST['update_channel'] ?? 'stable');
         if (!in_array($channel, ['stable', 'latest'])) {
             $_SESSION['error'] = 'Invalid update channel';
             $this->redirect('/settings#updates');
@@ -264,7 +273,7 @@ class UpdateController extends Controller
         // CSRF Protection
         $this->verifyCsrf('/settings#updates');
 
-        $channel = $_POST['update_channel'] ?? 'stable';
+        $channel = DeploymentHelper::isDocker() ? 'stable' : ($_POST['update_channel'] ?? 'stable');
 
         if (!in_array($channel, ['stable', 'latest'])) {
             $_SESSION['error'] = 'Invalid update channel';
@@ -312,5 +321,19 @@ class UpdateController extends Controller
             ? 'Update badge will be shown in the top menu when an update is available.'
             : 'Update badge in the top menu is now disabled.';
         $this->redirect('/settings#updates');
+    }
+
+    /**
+     * The Docker image is updated by pulling a new image, not by replacing files
+     */
+    private function refuseInDocker(): bool
+    {
+        if (!DeploymentHelper::isDocker()) {
+            return false;
+        }
+        $_SESSION['error'] = 'This install runs the Docker image, which is updated by pulling the new image: '
+            . implode(' && ', DeploymentHelper::dockerUpdateCommands()) . '. Your data in the /data volume is kept.';
+        $this->redirect('/settings#updates');
+        return true;
     }
 }

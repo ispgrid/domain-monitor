@@ -151,8 +151,9 @@ class SettingsController extends Controller
             ];
         }
 
-        // Rollback availability
-        $rollbackAvailable = !empty($updateSettings['update_backup_path']) && file_exists($updateSettings['update_backup_path']);
+        // Rollback availability (the Docker image goes back by using an older image tag)
+        $rollbackAvailable = !\App\Helpers\DeploymentHelper::isDocker()
+            && !empty($updateSettings['update_backup_path']) && file_exists($updateSettings['update_backup_path']);
 
         // Cron staleness: show warning if last run is overdue
         $intervalHours = (int)($settings['check_interval_hours'] ?? 24);

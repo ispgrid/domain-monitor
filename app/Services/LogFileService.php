@@ -160,6 +160,10 @@ class LogFileService
         if (preg_match('/^\[[^\]]+\]\s+\[(DEBUG|INFO|WARNING|ERROR|CRITICAL)\]/', $line, $m)) {
             return $m[1];
         }
+        // Apache error log: [Wed Oct 29 12:00:00.000000 2026] [php:error] [pid 12] ...
+        if (preg_match('/^\[[^\]]+\]\s+\[[a-z_]*:(emerg|alert|crit|error|warn|notice|info|debug)\]/', $line, $m)) {
+            return ['emerg' => 'CRITICAL', 'alert' => 'CRITICAL', 'crit' => 'CRITICAL', 'error' => 'ERROR', 'warn' => 'WARNING', 'notice' => 'INFO', 'info' => 'INFO', 'debug' => 'DEBUG'][$m[1]];
+        }
         return null;
     }
 

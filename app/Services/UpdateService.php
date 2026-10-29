@@ -52,7 +52,8 @@ class UpdateService
      */
     public function checkForUpdate(bool $forceCheck = false): array
     {
-        $channel = $this->settingModel->getValue('update_channel', 'stable');
+        // Docker images are only built for releases, so hotfix commits are never offered there
+        $channel = \App\Helpers\DeploymentHelper::isDocker() ? 'stable' : $this->settingModel->getValue('update_channel', 'stable');
         $currentVersion = $this->settingModel->getAppVersion();
         $localSha = $this->settingModel->getValue('installed_commit_sha', null);
 

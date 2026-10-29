@@ -1,0 +1,54 @@
+# Domain Monitor with MariaDB.
+#
+# 1. Put this file in an empty folder on the server.
+# 2. Next to it, create a file named .env with two passwords:
+#      DB_PASSWORD=change-me
+#      DB_ROOT_PASSWORD=change-me-too
+# 3. docker compose up -d, then open http://SERVER_IP:8080 to run the installer.
+#
+# Update: docker compose pull && docker compose up -d
+
+services:
+  app:
+    image: ghcr.io/ispgrid/domain-monitor:latest
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      DB_HOST: db
+      DB_DATABASE: domain_monitor
+      DB_USERNAME: domain_monitor
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      TZ: ${TZ:-UTC}
+      # Behind a reverse proxy (Caddy, nginx, Traefik): its address or network, so sign-in
+      # limits and logs see the visitor's IP, and HTTPS is detected.
+      # TRUSTED_PROXIES: "172.16.0.0/12"
+      # Also keep the web access log in Logs → Container (it holds visitor IPs).
+      # ACCESS_LOG_FILE: "true"
+    volumes:
+      - data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: domain_monitor
+      MARIADB_USER: domain_monitor
+      MARIADB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in .env}
+      TZ: ${TZ:-UTC}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  data:
+  db:

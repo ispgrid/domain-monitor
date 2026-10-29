@@ -1,0 +1,16 @@
+# Only what the app needs goes into the image
+*
+!app
+!core
+!cron
+!database
+!public
+!routes
+!scripts
+!docker
+!composer.json
+!composer.lock
+!env.example.txt
+!LICENSE
+public/assets/uploads/*
+!public/assets/uploads/.htaccess

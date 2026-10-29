@@ -92,7 +92,9 @@ class CronMonitor
 
             if (!$lastStarted) {
                 $state = 'never';
-                $message = 'Has not run yet. Add it to the server\'s crontab.';
+                $message = \App\Helpers\DeploymentHelper::isDocker()
+                    ? 'Has not run yet. The container scheduler starts it within 15 minutes.'
+                    : 'Has not run yet. Add it to the server\'s crontab.';
             } elseif ($lastRun && $lastRun['effective_status'] === 'running') {
                 $state = 'running';
                 $message = 'Running now';

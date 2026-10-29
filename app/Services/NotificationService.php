@@ -750,7 +750,9 @@ class NotificationService
             $userModel = new \App\Models\User();
             $notificationModel = new \App\Models\Notification();
             $title = $state === 'late' ? "Cron job late: {$jobLabel}" : "Cron job failing: {$jobLabel}";
-            $message = "{$detail}. Check the server's crontab and Logs → Cron Runs.";
+            $message = \App\Helpers\DeploymentHelper::isDocker()
+                ? "{$detail}. Check Logs → Container and Logs → Cron Runs, or run docker compose logs on the server."
+                : "{$detail}. Check the server's crontab and Logs → Cron Runs.";
 
             foreach ($userModel->getAllAdmins() as $admin) {
                 $notificationModel->createNotification($admin['id'], 'cron_problem', $title, $message, null);
