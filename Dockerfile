@@ -18,7 +18,7 @@ LABEL org.opencontainers.image.title="Domain Monitor" \
       org.opencontainers.image.licenses="MIT"
 
 COPY --from=mlocati/php-extension-installer:2 /usr/bin/install-php-extensions /usr/local/bin/
-RUN install-php-extensions pdo_mysql intl zip gd bcmath opcache \
+RUN install-php-extensions pdo_mysql intl zip gd bcmath \
     && a2enmod rewrite headers remoteip \
     && mkdir -p /etc/apache2/domain-monitor
 
@@ -28,8 +28,12 @@ COPY --from=vendor /app/vendor ./vendor
 COPY docker/apache.conf /etc/apache2/sites-available/000-default.conf
 COPY docker/php.ini /usr/local/etc/php/conf.d/zz-domain-monitor.ini
 
-# Runtime files point into /data; the shipped uploads folder is kept as the default to copy from
+# Runtime files point into /data; the shipped uploads folder is kept as the default to copy from.
+# The base image leaves /var/www/html world-writable and sticky, where the kernel won't let
+# www-data follow root's symlinks, so the app folder is made root-owned and read-only.
 RUN set -eux; \
+    chown root:root /var/www/html; \
+    chmod 755 /var/www/html; \
     mkdir -p /usr/src/domain-monitor; \
     mv public/assets/uploads /usr/src/domain-monitor/uploads; \
     rm -rf logs cache .env .installed; \
