@@ -228,7 +228,7 @@ A ready-made image is published for each release at `ghcr.io/ispgrid/domain-moni
 docker compose exec db sh -c 'mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE"' > backup.sql
 ```
 
-To stay on a version, use its tag instead of `latest`, for example `ghcr.io/ispgrid/domain-monitor:1.9` (newest 1.9.x) or `:1.9.0`.
+To stay on a version, use its tag instead of `latest`, for example `ghcr.io/ispgrid/domain-monitor:1.9` (newest 1.9.x) or `:1.9.0`. The `dev` tag is built from the development branch for testing and is not meant for production.
 
 **Your data:** settings (`.env`, with the encryption key the installer creates), uploads, logs and caches live in the `/data` volume, the database in the `db` volume. Both survive updates; `docker compose down -v` deletes them.
 
