@@ -2405,9 +2405,13 @@ class DomainController extends Controller
         try {
             $result = (new \App\Services\ProviderDnsSync())->syncDomain($domain, $zone, $account);
             $label = \App\Services\Registrars\ProviderRegistry::label($account['provider']);
-            $_SESSION[$result['mismatches'] ? 'warning' : 'success'] = $result['mismatches']
-                ? "{$label} zone re-checked: {$result['mismatches']} difference(s) with public DNS"
-                : "{$label} zone re-checked: matches public DNS";
+            if (!$result['in_use']) {
+                $_SESSION['warning'] = "{$label} zone re-checked: the domain doesn't use this zone, so it isn't compared";
+            } else {
+                $_SESSION[$result['mismatches'] ? 'warning' : 'success'] = $result['mismatches']
+                    ? "{$label} zone re-checked: {$result['mismatches']} difference(s) with public DNS"
+                    : "{$label} zone re-checked: matches public DNS";
+            }
         } catch (\App\Services\Registrars\ProviderException $e) {
             $_SESSION['error'] = $e->getMessage();
         }

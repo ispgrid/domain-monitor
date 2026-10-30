@@ -192,6 +192,9 @@ class IntegrationController extends Controller
         if ($summary['mismatched'] > 0) {
             $text .= " {$summary['mismatched']} differ from public DNS (see each domain's DNS tab).";
         }
+        if ($summary['unused'] > 0) {
+            $text .= " {$summary['unused']} not in use (the domain's nameservers are elsewhere), so not compared.";
+        }
         return $text;
     }
 

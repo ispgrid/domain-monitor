@@ -41,11 +41,11 @@ class ProviderDnsSync
     /**
      * Sync every zone of an account. Errors are stored on the account and returned, never thrown.
      *
-     * @return array{zones: int, linked: int, mismatched: int, alerts: int, error: ?string}
+     * @return array{zones: int, linked: int, mismatched: int, unused: int, alerts: int, error: ?string}
      */
     public function syncAccount(array $account): array
     {
-        $summary = ['zones' => 0, 'linked' => 0, 'mismatched' => 0, 'alerts' => 0, 'error' => null];
+        $summary = ['zones' => 0, 'linked' => 0, 'mismatched' => 0, 'unused' => 0, 'alerts' => 0, 'error' => null];
 
         try {
             $provider = ($this->providerFactory)($account['provider']);
@@ -69,6 +69,7 @@ class ProviderDnsSync
                     $linked[] = (int)$domain['id'];
                     $summary['linked']++;
                     $summary['mismatched'] += $result['mismatches'] > 0 ? 1 : 0;
+                    $summary['unused'] += $result['in_use'] ? 0 : 1;
                     $summary['alerts'] += $result['alerted'] ? 1 : 0;
                 } catch (ProviderException $e) {
                     // Keep the zone's last data; the account shows the error
@@ -92,7 +93,7 @@ class ProviderDnsSync
     /**
      * Re-read one domain's zone (the button on the DNS tab)
      *
-     * @return array{mismatches: int, alerted: bool}
+     * @return array{mismatches: int, alerted: bool, in_use: bool}
      */
     public function syncDomain(array $domain, array $zoneRow, array $account): array
     {
@@ -110,12 +111,12 @@ class ProviderDnsSync
     }
 
     /**
-     * @return array{mismatches: int, alerted: bool}
+     * @return array{mismatches: int, alerted: bool, in_use: bool}
      */
     private function syncZone(array $account, DnsProviderInterface $provider, array $creds, array $domain, array $zone): array
     {
         $records = $provider->listRecords($creds, $zone['id'], $zone['name']);
-        $comparison = $this->compare($zone['name'], $records, $zone['name_servers'] ?? []);
+        $comparison = $this->compare($zone['name'], $records, $zone['name_servers'] ?? [], (string)($zone['status'] ?? ''));
 
         $previous = $this->zoneModel->findByDomain((int)$domain['id']);
         $mismatch = $this->driftState($comparison, $previous);
@@ -128,16 +129,28 @@ class ProviderDnsSync
         }
 
         $this->zoneModel->saveZone((int)$account['id'], (int)$domain['id'], $zone, $records, $comparison, $mismatch);
-        return ['mismatches' => $mismatch['count'], 'alerted' => $alerted];
+        return ['mismatches' => $mismatch['count'], 'alerted' => $alerted, 'in_use' => $comparison['in_use']];
     }
 
     /**
-     * Compare the zone's records with public DNS, one row per type and host
+     * Compare the zone's records with public DNS, one row per type and host.
+     * A zone the domain doesn't use (nameservers elsewhere, or the provider says it isn't active) is not compared.
      *
-     * @return array{rows: array, delegation: array, mismatches: int, checked_at: string}
+     * @return array{rows: array, delegation: array, in_use: bool, mismatches: int, checked_at: string}
      */
-    public function compare(string $zoneName, array $records, array $zoneNameServers): array
+    public function compare(string $zoneName, array $records, array $zoneNameServers, string $zoneStatus = 'active'): array
     {
+        $publicNs = array_map(fn($r) => self::normalize('NS', $r), $this->dns->lookupType($zoneName, 'NS', $zoneName));
+        $zoneNs = array_map(fn($ns) => strtolower(rtrim($ns, '.')), $zoneNameServers);
+        sort($publicNs);
+        sort($zoneNs);
+        $delegation = [
+            'zone' => $zoneNs,
+            'public' => $publicNs,
+            'ok' => empty($zoneNs) || empty($publicNs) || count(array_intersect($zoneNs, $publicNs)) > 0,
+        ];
+        $inUse = $delegation['ok'] && in_array($zoneStatus, ['', 'active'], true);
+
         $groups = [];
         foreach ($records as $type => $list) {
             foreach ($list as $record) {
@@ -149,23 +162,27 @@ class ProviderDnsSync
         $rows = [];
         foreach ($groups as $key => $zoneRecords) {
             [$type, $host] = explode('|', $key, 2);
-            $rows[] = $this->compareGroup($zoneName, $type, $host, $zoneRecords);
+            $rows[] = $inUse ? $this->compareGroup($zoneName, $type, $host, $zoneRecords) : $this->unusedRow($type, $host, $zoneRecords);
         }
 
-        $publicNs = array_map(fn($r) => self::normalize('NS', $r), $this->dns->lookupType($zoneName, 'NS', $zoneName));
-        $zoneNs = array_map(fn($ns) => strtolower(rtrim($ns, '.')), $zoneNameServers);
-        sort($publicNs);
-        sort($zoneNs);
-        $delegation = [
-            'zone' => $zoneNs,
-            'public' => $publicNs,
-            'ok' => empty($zoneNs) || empty($publicNs) || count(array_intersect($zoneNs, $publicNs)) > 0,
+        $mismatches = $inUse ? count(array_filter($rows, fn($r) => in_array($r['status'], ['missing', 'different'], true))) : 0;
+
+        return ['rows' => $rows, 'delegation' => $delegation, 'in_use' => $inUse, 'mismatches' => $mismatches, 'checked_at' => date('Y-m-d H:i:s')];
+    }
+
+    private function unusedRow(string $type, string $host, array $zoneRecords): array
+    {
+        $zoneValues = array_values(array_unique(array_map(fn($r) => self::normalize($type, $r), $zoneRecords)));
+        sort($zoneValues);
+        return [
+            'type' => $type,
+            'host' => $host,
+            'zone' => $zoneValues,
+            'public' => [],
+            'proxied' => (bool)array_filter($zoneRecords, fn($r) => !empty($r['proxied'])),
+            'ttl' => $zoneRecords[0]['ttl'] ?? null,
+            'status' => 'unused',
         ];
-
-        $mismatches = count(array_filter($rows, fn($r) => in_array($r['status'], ['missing', 'different'], true)))
-            + ($delegation['ok'] ? 0 : 1);
-
-        return ['rows' => $rows, 'delegation' => $delegation, 'mismatches' => $mismatches, 'checked_at' => date('Y-m-d H:i:s')];
     }
 
     private function compareGroup(string $zoneName, string $type, string $host, array $zoneRecords): array
@@ -267,9 +284,6 @@ class ProviderDnsSync
             fn($r) => [$r['type'], $r['host'], $r['zone'], $r['public']],
             array_filter($comparison['rows'], fn($r) => in_array($r['status'], ['missing', 'different'], true))
         ));
-        if (!$comparison['delegation']['ok']) {
-            $problems[] = ['delegation', $comparison['delegation']['zone'], $comparison['delegation']['public']];
-        }
         $signature = hash('sha256', json_encode($problems));
 
         $since = date('Y-m-d H:i:s');
@@ -279,7 +293,8 @@ class ProviderDnsSync
             $alerted = $previous['alerted_signature'];
         }
 
-        $due = strtotime($since) <= time() - self::DRIFT_GRACE_MINUTES * 60;
+        // No public nameservers means the lookup failed or the domain doesn't resolve, so the differences prove nothing yet
+        $due = strtotime($since) <= time() - self::DRIFT_GRACE_MINUTES * 60 && !empty($comparison['delegation']['public']);
         return ['count' => $count, 'signature' => $signature, 'since' => $since, 'alerted' => $alerted, 'send' => $due && $alerted !== $signature];
     }
 
@@ -295,10 +310,6 @@ class ProviderDnsSync
         $label = ProviderRegistry::label($account['provider']);
         $summary = "{$label} and public DNS differ for {$domain['domain_name']} ({$comparison['mismatches']} difference(s))";
         $lines = ["⚠️ {$label} zone and public DNS differ: {$domain['domain_name']}", ''];
-        if (!$comparison['delegation']['ok']) {
-            $lines[] = "Nameservers: zone expects " . implode(', ', $comparison['delegation']['zone'])
-                . "; public DNS has " . implode(', ', $comparison['delegation']['public']);
-        }
         foreach ($comparison['rows'] as $row) {
             if (!in_array($row['status'], ['missing', 'different'], true)) {
                 continue;

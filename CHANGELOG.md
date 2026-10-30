@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Logs → Container** - On the Docker image: the container's startup log, the scheduler and web server errors, each kept under 5 MB. The web access log can be added with `ACCESS_LOG_FILE=true`
 - **Scheduler** - `cron/scheduler.php` starts the domain, SSL and DNS checks when their interval in Settings is due. The Docker image runs it every 15 minutes; other installs can use it as a single crontab line instead of three
 
+### Fixed
+- **Cloudflare alerts after moving a domain away** - When a domain's nameservers no longer point to its Cloudflare zone (or Cloudflare reports the zone as pending or moved), the zone is marked **not in use** and is no longer compared with public DNS, so moving a domain to another DNS host doesn't send a "zone and public DNS differ" alert for every record left in the old zone. The nameserver change itself is still reported by the normal DNS change alert. No alert is sent either when the domain's nameservers can't be looked up, since every record would look missing
+
 ## [1.8.0] - 2026-10-29
 
 ### Added
