@@ -10,7 +10,9 @@
 
 services:
   app:
-    image: ghcr.io/ispgrid/domain-monitor:latest
+    image: ispgrid/domain-monitor:latest
+    # The same image from GitHub's registry, if Docker Hub's pull limits get in the way:
+    # image: ghcr.io/ispgrid/domain-monitor:latest
     restart: unless-stopped
     ports:
       - "8080:80"

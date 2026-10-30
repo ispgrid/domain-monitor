@@ -1251,7 +1251,7 @@
                 </div>
             </div>
             <p>Then open <a href="/install/update" class="text-primary hover:underline">Database update</a> if the new version asks for it. Your settings, uploads and logs are in the <code class="text-xs bg-gray-100 dark:bg-slate-700 px-1 rounded">/data</code> volume and are kept.</p>
-            <p>To go back to an older version, set the image tag in <code class="text-xs bg-gray-100 dark:bg-slate-700 px-1 rounded">docker-compose.yml</code> (for example <code class="text-xs bg-gray-100 dark:bg-slate-700 px-1 rounded">ghcr.io/ispgrid/domain-monitor:{{ appSettings.app_version }}</code>) and restore the database backup you made before updating.</p>
+            <p>To go back to an older version, set the image tag in <code class="text-xs bg-gray-100 dark:bg-slate-700 px-1 rounded">docker-compose.yml</code> (for example <code class="text-xs bg-gray-100 dark:bg-slate-700 px-1 rounded">ispgrid/domain-monitor:{{ appSettings.app_version }}</code>) and restore the database backup you made before updating.</p>
             <div>
                 <p class="mb-2">Back up the database first (with the MariaDB container from the example compose file):</p>
                 <div class="bg-gray-900 text-gray-100 px-4 py-3 rounded-lg font-mono text-sm break-all">

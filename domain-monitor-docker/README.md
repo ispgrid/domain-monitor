@@ -2,7 +2,7 @@
 
 This directory contains Docker configuration for running Domain Monitor in a containerized environment.
 
-> **New installs:** use the published image instead (`ghcr.io/ispgrid/domain-monitor`, see **Docker** in the main README). It has the cron jobs built in and keeps your data in one volume. This bootstrap setup keeps working for existing installs, and its code is a git clone, so the in-app updater still works here.
+> **New installs:** use the published image instead (`ispgrid/domain-monitor`, see **Docker** in the main README). It has the cron jobs built in and keeps your data in one volume. This bootstrap setup keeps working for existing installs, and its code is a git clone, so the in-app updater still works here.
 
 ## Quick Start
 

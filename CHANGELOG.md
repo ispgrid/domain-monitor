@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Docker image** - Each release is published as `ghcr.io/ispgrid/domain-monitor` (tags `X.Y.Z`, `X.Y` and `latest`, amd64 and arm64), with an example `docker-compose.yml` that adds MariaDB. Settings, uploads and logs live in a `/data` volume and survive updates. See **Docker** in the README
+- **Docker image** - Each release is published on Docker Hub as `ispgrid/domain-monitor` and as `ghcr.io/ispgrid/domain-monitor` (tags `X.Y.Z`, `X.Y` and `latest`, amd64 and arm64), with an example `docker-compose.yml` that adds MariaDB. Settings, uploads and logs live in a `/data` volume and survive updates. See **Docker** in the README
 - **Docker mode** - With `DOCKER=true` in `.env` (the image sets it), **Settings → Updates** shows how to pull the new image instead of the update and rollback buttons, **Settings → System** explains that the checks run inside the container, and cron alerts point to the container logs. Installs without the line work as before
 - **Logs → Container** - On the Docker image: the container's startup log, the scheduler and web server errors, each kept under 5 MB. The web access log can be added with `ACCESS_LOG_FILE=true`
 - **Scheduler** - `cron/scheduler.php` starts the domain, SSL and DNS checks when their interval in Settings is due. The Docker image runs it every 15 minutes; other installs can use it as a single crontab line instead of three

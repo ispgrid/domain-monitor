@@ -209,7 +209,7 @@ Then visit: `http://localhost:8000`
 
 ## 🐳 Docker
 
-A ready-made image is published for each release at `ghcr.io/ispgrid/domain-monitor` (amd64 and arm64). It has the app, its PHP packages and the cron jobs built in.
+A ready-made image is published for each release on Docker Hub as [`ispgrid/domain-monitor`](https://hub.docker.com/r/ispgrid/domain-monitor) (amd64 and arm64). It has the app, its PHP packages and the cron jobs built in. The same image is also at `ghcr.io/ispgrid/domain-monitor`, which has no pull limits; to use it, swap the `image:` line in the compose file for the commented one below it.
 
 1. In an empty folder on the server, save [`docker-compose.yml`](docker-compose.yml) from this repo.
 2. Next to it, create a file named `.env` with two passwords:
@@ -228,7 +228,7 @@ A ready-made image is published for each release at `ghcr.io/ispgrid/domain-moni
 docker compose exec db sh -c 'mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE"' > backup.sql
 ```
 
-To stay on a version, use its tag instead of `latest`, for example `ghcr.io/ispgrid/domain-monitor:1.9` (newest 1.9.x) or `:1.9.0`. The `dev` tag is built from the development branch for testing and is not meant for production.
+To stay on a version, use its tag instead of `latest`, for example `ispgrid/domain-monitor:1.9` (newest 1.9.x) or `:1.9.0`. The `dev` tag is built from the development branch for testing and is not meant for production.
 
 **Your data:** settings (`.env`, with the encryption key the installer creates), uploads, logs and caches live in the `/data` volume, the database in the `db` volume. Both survive updates; `docker compose down -v` deletes them.
 

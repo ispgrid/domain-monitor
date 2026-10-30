@@ -2,6 +2,8 @@ name: Docker image
 # Builds the Docker image for each release and pushes it to ghcr.io/ispgrid/domain-monitor
 # with the tags X.Y.Z, X.Y and latest. A manual run builds an older tag without moving latest.
 # Pushes to the dev branch build the dev tag for testing.
+# With the DOCKERHUB_USERNAME variable and DOCKERHUB_TOKEN secret set, the same tags also go to
+# Docker Hub as <username>/domain-monitor, and .github/DOCKERHUB.md becomes its description.
 
 on:
   release:
@@ -23,6 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+      HAS_DOCKERHUB: ${{ vars.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,10 +41,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - if: env.HAS_DOCKERHUB == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: |
+            ghcr.io/${{ github.repository }}
+            name=docker.io/${{ env.DOCKERHUB_USERNAME }}/domain-monitor,enable=${{ env.HAS_DOCKERHUB == 'true' }}
           tags: |
             type=semver,pattern={{version}},value=${{ env.TAG }},enable=${{ env.TAG != '' }}
             type=semver,pattern={{major}}.{{minor}},value=${{ env.TAG }},enable=${{ env.TAG != '' }}
@@ -56,3 +68,16 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # A manual run builds an old tag, whose description could be out of date
+      - if: env.HAS_DOCKERHUB == 'true' && github.event_name != 'workflow_dispatch'
+        run: sed "s#__IMAGE__#${DOCKERHUB_USERNAME}/domain-monitor#g" .github/DOCKERHUB.md > "$RUNNER_TEMP/dockerhub.md"
+
+      - if: env.HAS_DOCKERHUB == 'true' && github.event_name != 'workflow_dispatch'
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.DOCKERHUB_USERNAME }}/domain-monitor
+          short-description: Self-hosted domain expiry, SSL and DNS monitoring with alerts
+          readme-filepath: ${{ runner.temp }}/dockerhub.md
