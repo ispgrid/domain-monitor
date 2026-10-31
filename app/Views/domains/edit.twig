@@ -120,9 +120,56 @@
                         {% endfor %}
                     </select>
                     <p class="mt-1.5 text-xs text-gray-500 dark:text-slate-400">
-                        Watched domains get no expiry reminders or "expired" alerts, only redemption, pending delete, available and registered
+                        Watched domains get no expiry reminders or "expired" alerts, only redemption, pending delete, available and registered, plus "still expired after N days" if set in Settings
                     </p>
                 </div>
+
+                <!-- Alerts for this domain -->
+                {% if domain.notify_expiry is defined %}
+                <div id="domain-alerts">
+                    <span class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">Alerts for this domain</span>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {% for type, label in alertTypes %}
+                            {% set current = attribute(domain, 'notify_' ~ type) %}
+                            <div>
+                                <label for="notify_{{ type }}" class="block text-xs text-gray-600 dark:text-slate-400 mb-1">{{ label }}</label>
+                                <select id="notify_{{ type }}"
+                                        name="notify_{{ type }}"
+                                        data-alert-type="{{ type }}"
+                                        class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors text-sm">
+                                    <option value="" {{ current is null ? 'selected' : '' }}>As the group</option>
+                                    <option value="1" {{ current is not null and current == 1 ? 'selected' : '' }}>On</option>
+                                    <option value="0" {{ current is not null and current == 0 ? 'selected' : '' }}>Off</option>
+                                </select>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-slate-400">
+                        Checks still run and save their results when an alert is off. "On" sends this alert even if the group has it switched off.
+                    </p>
+                </div>
+                <script>
+                (function () {
+                    // Show what "As the group" means for the selected group
+                    var groups = {{ groups|map(g => {id: g.id, expiry: g.notify_expiry ?? 1, status: g.notify_status ?? 1, dns: g.notify_dns ?? 1, ssl: g.notify_ssl ?? 1})|json_encode|raw }};
+                    var groupSelect = document.getElementById('notification_group_id');
+                    function refresh() {
+                        var group = groups.find(function (g) { return String(g.id) === groupSelect.value; });
+                        document.querySelectorAll('#domain-alerts select').forEach(function (select) {
+                            var text = 'As the group';
+                            if (group) {
+                                text += ' (' + (parseInt(group[select.dataset.alertType], 10) === 1 ? 'on' : 'off') + ')';
+                            } else {
+                                text += ' (no group: in-app only)';
+                            }
+                            select.options[0].textContent = text;
+                        });
+                    }
+                    groupSelect.addEventListener('change', refresh);
+                    refresh();
+                })();
+                </script>
+                {% endif %}
 
                 <!-- Manual Expiration Date -->
                 <div>

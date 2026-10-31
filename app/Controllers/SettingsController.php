@@ -261,6 +261,15 @@ class SettingsController extends Controller
             $sslDays = array_unique(array_map('intval', $sslDays));
             rsort($sslDays, SORT_NUMERIC);
 
+            // Watched domains: days after expiry to report it is still not released (empty = off)
+            $watchedInput = trim($_POST['watched_expired_days'] ?? '');
+            $watchedDays = \App\Models\Setting::parseDayList($watchedInput);
+            if ($watchedInput !== '' && empty($watchedDays)) {
+                $_SESSION['error'] = 'Invalid watched domain days. Use comma-separated numbers from 1 to 365 (e.g., 7,14,30), or leave it empty';
+                $this->redirect('/settings#monitoring');
+                return;
+            }
+
             // Update status notification triggers
             $statusTriggers = $_POST['notification_status_triggers'] ?? [];
             if (!is_array($statusTriggers)) {
@@ -271,6 +280,7 @@ class SettingsController extends Controller
             $this->settingModel->setValue('notification_days_before', $notificationDays);
             $this->settingModel->setValue('check_interval_hours', $checkInterval);
             $this->settingModel->setValue('ssl_notification_days', implode(',', $sslDays));
+            $this->settingModel->setValue('watched_expired_days', implode(',', $watchedDays));
             $this->settingModel->updateNotificationStatusTriggers($statusTriggers);
             $this->settingModel->setValue('webhook_allow_private', isset($_POST['webhook_allow_private']) ? '1' : '0');
 

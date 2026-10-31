@@ -74,6 +74,7 @@ logMessage("=== Starting domain check cron job ===");
 $notificationDays = $settingModel->getNotificationDays();
 
 logMessage("Notification thresholds (days): " . implode(', ', $notificationDays));
+$watchedExpiredDays = $settingModel->getWatchedExpiredDays();
 
 // Get all active domains
 $domains = $domainModel->where('is_active', 1);
@@ -215,8 +216,8 @@ foreach ($domains as $domain) {
         if ($statusNotificationType === 'domain_expired_status' && Domain::isWatched($domain)) {
             logMessage("  → Watching to acquire, no expired alert");
             $statusNotificationType = null;
-        } elseif ($statusNotificationType && !$groupModel->allowsAlert($domain['notification_group_id'], 'status')) {
-            logMessage("  → Status alerts are off for this domain's group");
+        } elseif ($statusNotificationType && !$groupModel->allowsDomainAlert($domain, 'status')) {
+            logMessage("  → Status alerts are off for this domain");
             $statusNotificationType = null;
         }
 
@@ -699,8 +700,8 @@ function notifyIfRenewed(array $domain, ?string $newExpiration): void
     logMessage("  🔄 Renewed: expiration $oldExpiration → $newExpiration");
     $stats['renewals']++;
 
-    if (!$groupModel->allowsAlert($domain['notification_group_id'] ?? null, 'status')) {
-        logMessage("  → Status alerts are off for this domain's group");
+    if (!$groupModel->allowsDomainAlert($domain, 'status')) {
+        logMessage("  → Status alerts are off for this domain");
         return;
     }
 
@@ -760,7 +761,7 @@ function notifyIfRenewed(array $domain, ?string $newExpiration): void
  */
 function notifyExpiry(array $domain, ?string $expirationDate, bool $savedDate, ?string $statusNotificationType = null): void
 {
-    global $notificationDays, $whoisService, $domainModel, $channelModel, $logModel, $groupModel, $userModel, $settingModel, $notificationService, $stats;
+    global $notificationDays, $watchedExpiredDays, $whoisService, $domainModel, $channelModel, $logModel, $groupModel, $userModel, $settingModel, $notificationService, $stats;
 
     $domainName = $domain['domain_name'];
     $daysLeft = $whoisService->daysUntilExpiration($expirationDate);
@@ -772,8 +773,18 @@ function notifyExpiry(array $domain, ?string $expirationDate, bool $savedDate, ?
     // Check if this domain should trigger an expiration notification
     $shouldNotify = false;
     $notificationType = '';
+    $expiredForDays = null;
 
-    if ($daysLeft <= 0) {
+    if (Domain::isWatched($domain)) {
+        // Watched domains get no reminders or "expired" alert, only "expired for N days" on the chosen days
+        if ($daysLeft >= 0 || !in_array(-$daysLeft, $watchedExpiredDays)) {
+            logMessage("  → Watching to acquire, no expiry alert today ($daysLeft days left)");
+            return;
+        }
+        $expiredForDays = -$daysLeft;
+        $shouldNotify = true;
+        $notificationType = "expired_for_{$expiredForDays}_days";
+    } elseif ($daysLeft <= 0) {
         // Only send expiration notification if we didn't already send a status change expired notification
         if ($statusNotificationType !== 'domain_expired_status') {
             $shouldNotify = true;
@@ -789,18 +800,18 @@ function notifyExpiry(array $domain, ?string $expirationDate, bool $savedDate, ?
         return;
     }
 
-    if (Domain::isWatched($domain)) {
-        logMessage("  → Watching to acquire, no expiry alerts");
-        return;
-    }
-
-    if (!$groupModel->allowsAlert($domain['notification_group_id'], 'expiry')) {
-        logMessage("  → Expiry alerts are off for this domain's group");
+    // For a watched domain this is a lifecycle step, so it follows the status switch
+    $alertKind = $expiredForDays !== null ? 'status' : 'expiry';
+    if (!$groupModel->allowsDomainAlert($domain, $alertKind)) {
+        logMessage("  → " . ucfirst($alertKind) . " alerts are off for this domain");
         return;
     }
 
     // Refresh domain data with group info
     $domainData = $domainModel->find($domain['id']);
+    if ($expiredForDays !== null) {
+        $domainData['expired_for_days'] = $expiredForDays;
+    }
     if ($savedDate) {
         $domainData['expiry_note'] = NotificationService::SAVED_DATE_NOTE;
     }
@@ -841,7 +852,7 @@ function notifyExpiry(array $domain, ?string $expirationDate, bool $savedDate, ?
                     $domain['id'],
                     $notificationType,
                     $channel,
-                    "Domain $domainName expires in $daysLeft days",
+                    $expiredForDays !== null ? "Watched domain $domainName expired $expiredForDays days ago" : "Domain $domainName expires in $daysLeft days",
                     $success,
                     $success ? null : "Failed to send notification"
                 );
@@ -911,7 +922,14 @@ function notifyExpiry(array $domain, ?string $expirationDate, bool $savedDate, ?
             }
             
             try {
-                if ($daysLeft <= 0) {
+                if ($expiredForDays !== null) {
+                    $notificationService->notifyWatchedDomainExpired(
+                        $userId,
+                        $domainName,
+                        $domain['id'],
+                        $expiredForDays
+                    );
+                } elseif ($daysLeft <= 0) {
                     $notificationService->notifyDomainExpired(
                         $userId,
                         $domainName,
@@ -933,7 +951,7 @@ function notifyExpiry(array $domain, ?string $expirationDate, bool $savedDate, ?
             }
         }
         if ($notifiedCount > 0) {
-            $statusText = $daysLeft <= 0 ? "Domain expired" : "Domain expiring in $daysLeft days";
+            $statusText = $expiredForDays !== null ? "Watched domain expired $expiredForDays days ago" : ($daysLeft <= 0 ? "Domain expired" : "Domain expiring in $daysLeft days");
             logMessage("  🔔 Created in-app notifications for $notifiedCount user(s): $statusText");
             $stats['in_app_notifications_created'] += $notifiedCount;
             $stats['domains_with_notifications']++;

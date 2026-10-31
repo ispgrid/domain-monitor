@@ -37,6 +37,43 @@ class NotificationGroup extends Model
     }
 
     /**
+     * Whether this domain gets this kind of alert: its own switch when set, otherwise its group's
+     */
+    public function allowsDomainAlert(array $domain, string $type): bool
+    {
+        $column = 'notify_' . $type;
+        // Rows loaded with only a few columns: read the switch from the domain itself
+        if (isset(self::ALERT_TYPES[$type]) && !array_key_exists($column, $domain) && !empty($domain['id'])) {
+            $domain = (new Domain())->find((int)$domain['id']) ?: $domain;
+        }
+
+        $override = self::domainOverride($domain, $type);
+        return $override ?? $this->allowsAlert($domain['notification_group_id'] ?? null, $type);
+    }
+
+    /**
+     * The domain's own switch for an alert kind: true, false, or null to follow the group
+     */
+    public static function domainOverride(array $domain, string $type): ?bool
+    {
+        $value = $domain['notify_' . $type] ?? null;
+        return $value === null || $value === '' ? null : (int)$value === 1;
+    }
+
+    /**
+     * notify_* override values from a submitted domain form ('' = as group, '1' on, '0' off)
+     */
+    public static function domainOverridesFromPost(array $post): array
+    {
+        $settings = [];
+        foreach (array_keys(self::ALERT_TYPES) as $type) {
+            $value = $post['notify_' . $type] ?? '';
+            $settings['notify_' . $type] = $value === '1' ? 1 : ($value === '0' ? 0 : null);
+        }
+        return $settings;
+    }
+
+    /**
      * notify_* values from a submitted group form
      */
     public static function alertSettingsFromPost(array $post): array

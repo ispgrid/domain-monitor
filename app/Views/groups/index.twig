@@ -330,7 +330,7 @@ document.getElementById('groupImportModal')?.addEventListener('click', function(
     prefix: 'group',
     title: 'Import Notification Groups',
     action: '/groups/import',
-    format_html: '<p class="text-xs text-gray-600 dark:text-slate-400">CSV: <code class="bg-white dark:bg-slate-700 px-1 rounded">group_name, group_description, channel_type, channel_config, is_active</code></p><p class="text-xs text-gray-600 dark:text-slate-400 mt-0.5">JSON: array of group objects with nested channels array</p><p class="text-xs text-gray-500 dark:text-slate-400 mt-1.5"><i class="fas fa-exclamation-triangle text-amber-500 mr-1"></i>Channels with masked secrets will be imported as <strong>disabled</strong>. Update the credentials and enable them manually.</p>'
+    format_html: '<p class="text-xs text-gray-600 dark:text-slate-400">CSV: <code class="bg-white dark:bg-slate-700 px-1 rounded">group_name, group_description, alerts, channel_type, channel_config, is_active</code> (alerts: the kinds that are on, e.g. <code class="bg-white dark:bg-slate-700 px-1 rounded">expiry;status;dns;ssl</code>)</p><p class="text-xs text-gray-600 dark:text-slate-400 mt-0.5">JSON: array of group objects with nested channels array</p><p class="text-xs text-gray-500 dark:text-slate-400 mt-1.5"><i class="fas fa-exclamation-triangle text-amber-500 mr-1"></i>Channels with masked secrets will be imported as <strong>disabled</strong>. Update the credentials and enable them manually.</p>'
 } %}
 {% include 'partials/transfer-modal.twig' %}
 {% endblock %}

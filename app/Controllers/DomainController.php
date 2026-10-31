@@ -45,6 +45,14 @@ class DomainController extends Controller
     /**
      * Check domain access based on isolation mode
      */
+    /**
+     * The domain's own alert switches from the edit form. Left out until the database update adds the columns
+     */
+    private function alertOverridesFromPost(array $domain): array
+    {
+        return array_key_exists('notify_expiry', $domain) ? NotificationGroup::domainOverridesFromPost($_POST) : [];
+    }
+
     private function checkDomainAccess(int $id): ?array
     {
         $userId = \Core\Auth::id();
@@ -669,6 +677,7 @@ class DomainController extends Controller
             'availableTags' => $availableTags,
             'referrer' => $referrer,
             'purposes' => \App\Models\Domain::PURPOSES,
+            'alertTypes' => NotificationGroup::ALERT_TYPES,
             'title' => 'Edit Domain'
         ]);
     }
@@ -737,7 +746,7 @@ class DomainController extends Controller
             'ssl_monitoring_enabled' => $sslMonitoringEnabled,
             'purpose' => $purpose,
             'expiration_date' => $manualExpirationDate
-        ]);
+        ] + $this->alertOverridesFromPost($domain));
 
         // Send notification if monitoring status changed and has notification group
         if ($statusChanged && $groupId) {

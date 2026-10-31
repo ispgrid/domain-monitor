@@ -199,8 +199,8 @@ foreach ($domains as $domain) {
             'changed' => count($changes['changed']),
         ];
 
-        if (!$groupModel->allowsAlert($domain['notification_group_id'] ?? null, 'dns')) {
-            logMessage("  → DNS alerts are off for this domain's group");
+        if (!$groupModel->allowsDomainAlert($domain, 'dns')) {
+            logMessage("  → DNS alerts are off for this domain");
             logTimeSince($domainStartTime);
             usleep(INTER_DOMAIN_DELAY_US);
             continue;

@@ -128,15 +128,18 @@ class NotificationGroupController extends Controller
                 echo json_encode($exportData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
             } else {
                 // Build CSV in memory — flatten groups with channels into rows
+                // Alert switches as the kinds that are on, e.g. "expiry;status" (empty = all off)
                 $csvRows = [];
                 foreach ($exportData as $group) {
+                    $alerts = implode(';', $group['alerts']);
                     if (empty($group['channels'])) {
-                        $csvRows[] = ['group_name' => $group['group_name'], 'group_description' => $group['group_description'], 'channel_type' => '', 'channel_config' => '', 'is_active' => ''];
+                        $csvRows[] = ['group_name' => $group['group_name'], 'group_description' => $group['group_description'], 'alerts' => $alerts, 'channel_type' => '', 'channel_config' => '', 'is_active' => ''];
                     } else {
                         foreach ($group['channels'] as $ch) {
                             $csvRows[] = [
                                 'group_name' => $group['group_name'],
                                 'group_description' => $group['group_description'],
+                                'alerts' => $alerts,
                                 'channel_type' => $ch['channel_type'],
                                 'channel_config' => json_encode($ch['channel_config']),
                                 'is_active' => $ch['is_active'] ? '1' : '0'
@@ -145,7 +148,7 @@ class NotificationGroupController extends Controller
                     }
                 }
 
-                $csvContent = $this->buildCsv($csvRows, ['group_name', 'group_description', 'channel_type', 'channel_config', 'is_active']);
+                $csvContent = $this->buildCsv($csvRows, ['group_name', 'group_description', 'alerts', 'channel_type', 'channel_config', 'is_active']);
                 $logger->info("CSV content built", ['bytes' => strlen($csvContent)]);
 
                 header('Content-Type: text/csv; charset=utf-8');
@@ -167,6 +170,14 @@ class NotificationGroupController extends Controller
             $_SESSION['error'] = 'Export failed: ' . $e->getMessage();
             $this->redirect('/groups');
         }
+    }
+
+    /**
+     * notify_* values from a list of the alert kinds that are on, as written by the export
+     */
+    private function alertSettingsFromList(array $alerts): array
+    {
+        return NotificationGroup::alertSettingsFromPost(array_fill_keys(array_map(fn($t) => 'notify_' . $t, $alerts), 1));
     }
 
     /**
@@ -265,9 +276,7 @@ class NotificationGroupController extends Controller
                     'name' => $groupName,
                     'description' => trim($groupData['group_description'] ?? ''),
                     'user_id' => $isolationMode === 'isolated' ? $userId : null
-                ] + (is_array($groupData['alerts'] ?? null)
-                    ? NotificationGroup::alertSettingsFromPost(array_fill_keys(array_map(fn($t) => 'notify_' . $t, $groupData['alerts']), 1))
-                    : []));
+                ] + (is_array($groupData['alerts'] ?? null) ? $this->alertSettingsFromList($groupData['alerts']) : []));
 
                 if ($groupId && !empty($groupData['channels'])) {
                     foreach ($groupData['channels'] as $ch) {
@@ -311,6 +320,8 @@ class NotificationGroupController extends Controller
                 if (!isset($csvGroups[$gName])) {
                     $csvGroups[$gName] = [
                         'description' => trim($item['group_description'] ?? ''),
+                        // Files exported before this column existed keep every alert on
+                        'alerts' => array_key_exists('alerts', $item) ? array_filter(array_map('trim', explode(';', $item['alerts']))) : null,
                         'channels' => []
                     ];
                 }
@@ -336,7 +347,7 @@ class NotificationGroupController extends Controller
                     'name' => $gName,
                     'description' => $gData['description'],
                     'user_id' => $isolationMode === 'isolated' ? $userId : null
-                ]);
+                ] + ($gData['alerts'] !== null ? $this->alertSettingsFromList($gData['alerts']) : []));
 
                 if ($groupId) {
                     foreach ($gData['channels'] as $ch) {

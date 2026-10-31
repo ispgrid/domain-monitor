@@ -263,6 +263,15 @@ class NotificationService
         $expirationDate = $domain['expiration_date'] ? date('F j, Y', strtotime($domain['expiration_date'])) : 'Unknown';
         $registrar = $domain['registrar'] ?? 'Unknown';
 
+        if (!empty($domain['expired_for_days'])) {
+            $days = (int)$domain['expired_for_days'];
+            $status = self::getStatusLabel($domain['status'] ?? 'expired');
+            return "👀 Watched domain '$domainName' expired $days day" . ($days === 1 ? '' : 's') . " ago ($expirationDate) and is not available yet.\n\n" .
+                   "Status: $status\n" .
+                   "Registrar: $registrar\n" .
+                   "Redemption, pending delete and available alerts follow when the registry reports them.";
+        }
+
         if ($daysLeft <= 0) {
             return "🚨 URGENT: Domain '$domainName' has EXPIRED on $expirationDate!\n\n" .
                    "Registrar: $registrar\n" .
@@ -291,9 +300,8 @@ class NotificationService
      */
     private function calculateDaysLeft(string $expirationDate): int
     {
-        $expiration = strtotime($expirationDate);
-        $now = time();
-        return (int)floor(($expiration - $now) / 86400);
+        // Whole calendar days, the same count the cron uses to pick the alert day
+        return \App\Helpers\DomainHelper::daysUntil($expirationDate) ?? 0;
     }
 
     // ========================================
@@ -326,6 +334,21 @@ class NotificationService
             'domain_expired',
             'Domain Expired',
             "{$domainName} has expired - renew immediately" . ($savedDate ? ' (saved date, the registry gave none)' : ''),
+            $domainId
+        );
+    }
+
+    /**
+     * Create an "expired N days ago" notification for a watched domain (in-app)
+     */
+    public function notifyWatchedDomainExpired(int $userId, string $domainName, int $domainId, int $days): void
+    {
+        $notificationModel = new \App\Models\Notification();
+        $notificationModel->createNotification(
+            $userId,
+            'domain_expired',
+            'Watched Domain Still Expired',
+            "{$domainName} expired {$days} day" . ($days === 1 ? '' : 's') . " ago and is not available yet",
             $domainId
         );
     }

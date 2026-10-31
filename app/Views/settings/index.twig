@@ -549,6 +549,19 @@
                     </label>
                 </div>
 
+                <div class="mt-4">
+                    <label for="watched_expired_days" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                        Watched domains: still expired after (days)
+                    </label>
+                    <input type="text"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                           id="watched_expired_days"
+                           name="watched_expired_days"
+                           value="{{ settings.watched_expired_days|default('') }}"
+                           placeholder="e.g., 7,14,30">
+                    <p class="text-xs text-gray-500 dark:text-slate-400 mt-1">For domains you are watching to acquire: an alert on each of these days after the expiry date while the domain is not available yet. Empty means off. Uses the group's status alert switch.</p>
+                </div>
+
                 <div class="bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg p-3 mt-3">
                     <p class="text-xs text-gray-600 dark:text-slate-400">
                         <i class="fas fa-info-circle text-gray-400 dark:text-slate-500 mr-1"></i>

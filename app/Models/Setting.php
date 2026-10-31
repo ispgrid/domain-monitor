@@ -77,6 +77,25 @@ class Setting extends Model
     }
 
     /**
+     * Days after expiry on which a watched domain still not released is reported, e.g. [7, 14, 30]. Empty = off
+     */
+    public function getWatchedExpiredDays(): array
+    {
+        return self::parseDayList((string)$this->getValue('watched_expired_days', ''));
+    }
+
+    /**
+     * "30, 7,x,7" -> [7, 30]: whole days from 1 to 365, sorted, no repeats
+     */
+    public static function parseDayList(string $value): array
+    {
+        $days = array_filter(array_map('trim', explode(',', $value)), fn($d) => ctype_digit($d) && (int)$d >= 1 && (int)$d <= 365);
+        $days = array_values(array_unique(array_map('intval', $days)));
+        sort($days, SORT_NUMERIC);
+        return $days;
+    }
+
+    /**
      * Get SSL alert days as array, largest first (the largest marks a certificate as expiring)
      */
     public function getSslNotificationDays(): array

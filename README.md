@@ -43,7 +43,7 @@ A modern PHP MVC application for monitoring domain expiration dates and sending 
 - 🔍 **Smart WHOIS/RDAP Lookup** - Automatically fetches expiration dates and registrar information
 - 🗂️ **TLD Registry System** - Built-in support for 1,400+ TLDs with IANA integration
 - 🔔 **Multi-Channel Notifications** - Email, Telegram, Discord, Slack, Mattermost, Pushover, and Webhook support
-- 👥 **Notification Groups** - Organize channels and assign domains flexibly, and choose which alerts each group gets (expiry, status, DNS, SSL)
+- 👥 **Notification Groups** - Organize channels and assign domains flexibly, and choose which alerts each group gets (expiry, status, DNS, SSL), with per-domain overrides
 - ⚡ **Real-time Dashboard** - Overview of all domains and their status
 - 📊 **Notification Logs** - Complete history of all sent notifications
 - 🤖 **Automated Monitoring** - Cron-based checks with configurable intervals
@@ -519,7 +519,7 @@ Before setting up the cron job, test your notification channels through the web 
 1. Navigate to **Domains** → **Add Domain**
 2. Enter the domain name (e.g., `example.com`)
 3. Optionally assign to a notification group
-4. Pick why you are monitoring it: **I own this domain**, or **Watching to acquire it** (no expiry reminders or "expired" alerts, only redemption, pending delete, available and registered)
+4. Pick why you are monitoring it: **I own this domain**, or **Watching to acquire it** (no expiry reminders or "expired" alerts, only redemption, pending delete, available and registered, plus "still expired after N days" if you set those days in **Settings → Monitoring**)
 5. Click **Add Domain**
 
 The system will automatically fetch WHOIS information.

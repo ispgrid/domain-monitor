@@ -303,8 +303,8 @@ class ProviderDnsSync
      */
     private function sendDriftAlert(array $domain, array $account, array $comparison): bool
     {
-        if (!(new NotificationGroup())->allowsAlert($domain['notification_group_id'] ?? null, 'dns')) {
-            return true; // switched off for this group: treat as handled so it isn't retried every sync
+        if (!(new NotificationGroup())->allowsDomainAlert($domain, 'dns')) {
+            return true; // switched off for this domain or its group: treat as handled so it isn't retried every sync
         }
 
         $label = ProviderRegistry::label($account['provider']);
