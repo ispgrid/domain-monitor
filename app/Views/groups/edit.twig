@@ -5,9 +5,38 @@
 {% set pageDescription = group.name %}
 {% set pageIcon = 'fas fa-edit' %}
 
-{% set channelIcons = { email: 'fa-envelope', telegram: 'fa-telegram', discord: 'fa-discord', slack: 'fa-slack', mattermost: 'fa-comments', pushover: 'fa-mobile-alt', webhook: 'fa-link' } %}
-{% set channelIconPrefixes = { email: 'fas', telegram: 'fab', discord: 'fab', slack: 'fab', mattermost: 'fas', pushover: 'fas', webhook: 'fas' } %}
-{% set channelColors = { email: 'blue', telegram: 'blue', discord: 'indigo', slack: 'teal', mattermost: 'green', pushover: 'red', webhook: 'purple' } %}
+{% set channelIcons = { email: 'fa-envelope', telegram: 'fa-telegram', discord: 'fa-discord', slack: 'fa-slack', mattermost: 'fa-comments', pushover: 'fa-mobile-alt', gotify: 'fa-bell', ntfy: 'fa-bullhorn', wacrm: 'fa-whatsapp', msg91: 'fa-sms', webhook: 'fa-link' } %}
+{% set channelIconPrefixes = { email: 'fas', telegram: 'fab', discord: 'fab', slack: 'fab', mattermost: 'fas', pushover: 'fas', gotify: 'fas', ntfy: 'fas', wacrm: 'fab', msg91: 'fas', webhook: 'fas' } %}
+{% set channelColors = { email: 'blue', telegram: 'blue', discord: 'indigo', slack: 'teal', mattermost: 'green', pushover: 'red', gotify: 'sky', ntfy: 'emerald', wacrm: 'green', msg91: 'orange', webhook: 'purple' } %}
+
+{# One labelled input of the newer channel forms; "required" fields are checked before Add and Test #}
+{% macro field(name, label, opts = {}) %}
+    <div>
+        <label for="{{ name }}" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">
+            {{ label }}{% if opts.required|default(false) %} <span class="text-red-500">*</span>{% endif %}
+        </label>
+        {% if opts.options is defined %}
+            <select id="{{ name }}" name="{{ name }}"{% if opts.onchange is defined %} onchange="{{ opts.onchange }}"{% endif %}
+                    class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white">
+                {% for value, text in opts.options %}
+                    <option value="{{ value }}">{{ text }}</option>
+                {% endfor %}
+            </select>
+        {% elseif opts.textarea|default(false) %}
+            <textarea id="{{ name }}" name="{{ name }}" rows="2"{% if opts.required|default(false) %} data-required="1"{% endif %}
+                      class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors text-sm font-mono bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                      placeholder="{{ opts.placeholder|default('') }}"></textarea>
+        {% else %}
+            <input type="{{ opts.type|default('text') }}" id="{{ name }}" name="{{ name }}"{% if opts.required|default(false) %} data-required="1"{% endif %}
+                   value="{{ opts.value|default('') }}"
+                   class="w-full px-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors text-sm font-mono bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                   placeholder="{{ opts.placeholder|default('') }}" autocomplete="off">
+        {% endif %}
+        {% if opts.help is defined %}
+            <p class="mt-1.5 text-xs text-gray-500 dark:text-slate-400">{{ opts.help|raw }}</p>
+        {% endif %}
+    </div>
+{% endmacro %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto space-y-4">
@@ -116,7 +145,7 @@
                                     {{ channel.is_active ? 'Active' : 'Disabled' }}
                                 </span>
                             </div>
-                            <h3 class="font-semibold text-gray-800 dark:text-slate-200 mb-2">{{ channel.channel_type|capitalize }}</h3>
+                            <h3 class="font-semibold text-gray-800 dark:text-slate-200 mb-2">{{ channelNames[channel.channel_type]|default(channel.channel_type|capitalize) }}</h3>
                             <p class="text-sm text-gray-600 dark:text-slate-400 mb-4 truncate">
                                 {% if channel.channel_type == 'email' %}
                                     {{ config.email|default('No email') }}
@@ -124,6 +153,14 @@
                                     Chat: {{ config.chat_id|default('N/A') }}
                                 {% elseif channel.channel_type == 'pushover' %}
                                     User: {{ (config.user_key|default('N/A'))|slice(0, 10) }}...
+                                {% elseif channel.channel_type == 'gotify' %}
+                                    {{ config.server_url|default('') }}
+                                {% elseif channel.channel_type == 'ntfy' %}
+                                    {{ config.server_url|default('https://ntfy.sh')|replace({'https://': '', 'http://': ''}) }}/{{ config.topic|default('')|slice(0, 4) }}...
+                                {% elseif channel.channel_type == 'wacrm' %}
+                                    {{ config.recipients|default('')|split(',')|length }} number(s), {{ config.mode|default('template') == 'text' ? 'plain text' : 'template ' ~ config.template_name|default('') }}
+                                {% elseif channel.channel_type == 'msg91' %}
+                                    {{ config.recipients|default('')|split(',')|length }} number(s), template {{ config.template_id|default('') }}
                                 {% elseif channel.channel_type == 'webhook' %}
                                     {% set format = config.format|default('generic') %}
                                     Format: {{ formatLabels[format]|default(format|capitalize) }}
@@ -185,6 +222,10 @@
                             <option value="slack">Slack</option>
                             <option value="mattermost">Mattermost</option>
                             <option value="pushover">Pushover</option>
+                            <option value="gotify">Gotify</option>
+                            <option value="ntfy">ntfy</option>
+                            <option value="wacrm">WACRM (WhatsApp)</option>
+                            <option value="msg91">MSG91 (SMS)</option>
                             <option value="webhook">Webhook (Custom)</option>
                         </select>
                     </div>
@@ -372,6 +413,52 @@
                         </div>
                     </div>
 
+                    {% import _self as f %}
+                    {% set autoPriority = {'': 'By urgency (default)'} %}
+
+                    {# Gotify Fields #}
+                    <div id="gotify_fields" class="hidden space-y-4 extra-channel-fields">
+                        {{ f.field('gotify_server_url', 'Gotify server URL', {required: true, placeholder: 'https://gotify.example.com'}) }}
+                        {{ f.field('gotify_app_token', 'Application token', {required: true, help: 'In Gotify: <strong>Apps</strong> &rarr; <strong>Create application</strong>, then copy its token.'}) }}
+                        {{ f.field('gotify_priority', 'Priority', {options: autoPriority|merge({'2': '2 (low)', '4': '4', '5': '5 (normal)', '6': '6', '8': '8 (high)', '10': '10 (highest)'}), help: 'By urgency: 8 when the domain expires within a day, 6 within a week, lower otherwise.'}) }}
+                    </div>
+
+                    {# ntfy Fields #}
+                    <div id="ntfy_fields" class="hidden space-y-4 extra-channel-fields">
+                        {{ f.field('ntfy_server_url', 'Server URL', {placeholder: 'https://ntfy.sh', help: 'Leave empty for ntfy.sh, or enter your own ntfy server.'}) }}
+                        {{ f.field('ntfy_topic', 'Topic', {required: true, placeholder: 'domain-alerts-x7k2p', help: 'Letters, numbers, - and _. On ntfy.sh anyone who knows the topic can read it, so pick a hard to guess name or use an access token.'}) }}
+                        {{ f.field('ntfy_access_token', 'Access token (optional)', {placeholder: 'tk_...', help: 'For protected topics. Or use a username and password below.'}) }}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {{ f.field('ntfy_username', 'Username (optional)') }}
+                            {{ f.field('ntfy_password', 'Password (optional)', {type: 'password'}) }}
+                        </div>
+                        {{ f.field('ntfy_priority', 'Priority', {options: autoPriority|merge({'1': '1 (min)', '2': '2 (low)', '3': '3 (default)', '4': '4 (high)', '5': '5 (max)'})}) }}
+                    </div>
+
+                    {# WACRM Fields #}
+                    <div id="wacrm_fields" class="hidden space-y-4 extra-channel-fields">
+                        {{ f.field('wacrm_base_url', 'WACRM URL', {required: true, placeholder: 'https://crm.example.com'}) }}
+                        {{ f.field('wacrm_api_key', 'API key', {required: true, placeholder: 'wacrm_live_...', help: 'In WACRM: <strong>Settings</strong> &rarr; <strong>API keys</strong> &rarr; <strong>New API key</strong> with the <code>messages:send</code> scope.'}) }}
+                        {{ f.field('wacrm_recipients', 'WhatsApp numbers', {required: true, textarea: true, placeholder: '+919876543210, +14155550123', help: 'With the country code, separated by commas.'}) }}
+                        {{ f.field('wacrm_mode', 'Send as', {options: {template: 'Approved template (recommended)', text: 'Plain text'}, onchange: 'toggleWacrmMode()', help: 'WhatsApp only delivers plain text to someone who messaged your number in the last 24 hours. Alerts usually need an approved template.'}) }}
+                        <div id="wacrm_template_fields" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {{ f.field('wacrm_template_name', 'Template name', {placeholder: 'domain_alert', help: 'An approved template with one variable in its body, e.g. <code>Domain Monitor alert: {{1}}</code>. The alert goes into it on one line.'}) }}
+                            {{ f.field('wacrm_template_language', 'Template language', {value: 'en_US', placeholder: 'en_US'}) }}
+                        </div>
+                    </div>
+
+                    {# MSG91 Fields #}
+                    <div id="msg91_fields" class="hidden space-y-4 extra-channel-fields">
+                        {{ f.field('msg91_auth_key', 'Auth key', {required: true, help: 'In MSG91: <strong>API</strong> &rarr; <strong>Auth key</strong>.'}) }}
+                        {{ f.field('msg91_template_id', 'SMS template ID', {required: true, help: 'A DLT-approved SMS template in MSG91 with two variables, e.g. <code>Domain alert for ##var1##: ##var2##</code>. Variable values are kept short (30 characters by default, the DLT limit).'}) }}
+                        {{ f.field('msg91_recipients', 'Mobile numbers', {required: true, textarea: true, placeholder: '919876543210, 919812345678', help: 'With the country code, separated by commas.'}) }}
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            {{ f.field('msg91_domain_var', 'Variable for the domain', {value: 'var1'}) }}
+                            {{ f.field('msg91_alert_var', 'Variable for the alert', {value: 'var2'}) }}
+                            {{ f.field('msg91_max_length', 'Max characters per variable', {type: 'number', value: '30'}) }}
+                        </div>
+                    </div>
+
                     {# Generic Webhook Fields #}
                     <div id="webhook_fields" class="hidden space-y-4">
                         <div>
@@ -519,11 +606,18 @@ function toggleChannelFields() {
     document.getElementById('mattermost_fields').classList.add('hidden');
     document.getElementById('pushover_fields').classList.add('hidden');
     document.getElementById('webhook_fields').classList.add('hidden');
+    document.querySelectorAll('.extra-channel-fields').forEach(function (block) {
+        block.classList.add('hidden');
+        block.querySelectorAll('[data-required]').forEach(function (input) { input.removeAttribute('required'); });
+    });
 
     testBtn.classList.add('hidden');
 
     if (channelType) {
-        document.getElementById(channelType + '_fields').classList.remove('hidden');
+        const fieldsBlock = document.getElementById(channelType + '_fields');
+        fieldsBlock.classList.remove('hidden');
+        fieldsBlock.querySelectorAll('[data-required]').forEach(function (input) { input.setAttribute('required', 'required'); });
+        if (channelType === 'wacrm') toggleWacrmMode();
 
         switch(channelType) {
             case 'email':
@@ -562,6 +656,26 @@ function toggleChannelFields() {
 
         testBtn.classList.remove('hidden');
     }
+}
+
+// WACRM: the template fields only matter when sending as a template
+function toggleWacrmMode() {
+    const asTemplate = document.getElementById('wacrm_mode').value === 'template';
+    const name = document.getElementById('wacrm_template_name');
+    document.getElementById('wacrm_template_fields').classList.toggle('hidden', !asTemplate);
+    if (asTemplate && !document.getElementById('wacrm_fields').classList.contains('hidden')) {
+        name.setAttribute('required', 'required');
+    } else {
+        name.removeAttribute('required');
+    }
+}
+
+// Newer channel forms: the first required field left empty, or null
+function missingExtraField(channelType) {
+    const block = document.getElementById(channelType + '_fields');
+    if (!block || !block.classList.contains('extra-channel-fields')) return null;
+    const fields = Array.from(block.querySelectorAll('[required]'));
+    return fields.find(function (input) { return !input.value.trim(); }) || null;
 }
 
 const addChannelForm = document.querySelector('form[action="/groups/{{ group.id }}/channels"]');
@@ -723,6 +837,12 @@ function testChannel(channelType, existingConfig = null) {
                 break;
         }
 
+        const missing = missingExtraField(channelType);
+        if (isValid && missing) {
+            isValid = false;
+            errorMessage = 'Please fill in: ' + document.querySelector('label[for="' + missing.id + '"]').textContent.replace('*', '').trim();
+        }
+
         if (!isValid) {
             alert(errorMessage);
             return;
@@ -769,6 +889,15 @@ function testChannel(channelType, existingConfig = null) {
                     formData.append('webhook_format', existingConfig.format);
                 }
                 break;
+            case 'gotify':
+            case 'ntfy':
+            case 'wacrm':
+            case 'msg91':
+                // Saved settings go back under their form names, e.g. topic -> ntfy_topic
+                Object.keys(existingConfig).forEach(function (key) {
+                    formData.append(channelType + '_' + key, existingConfig[key]);
+                });
+                break;
             case 'pushover':
                 formData.append('pushover_api_token', existingConfig.api_token);
                 formData.append('pushover_user_key', existingConfig.user_key);
@@ -804,6 +933,14 @@ function testChannel(channelType, existingConfig = null) {
                 if (webhookFormat && webhookFormat.value) {
                     formData.append('webhook_format', webhookFormat.value);
                 }
+                break;
+            case 'gotify':
+            case 'ntfy':
+            case 'wacrm':
+            case 'msg91':
+                document.querySelectorAll('#' + channelType + '_fields [name]').forEach(function (input) {
+                    formData.append(input.name, input.value);
+                });
                 break;
             case 'pushover':
                 formData.append('pushover_api_token', document.getElementById('pushover_api_token').value);

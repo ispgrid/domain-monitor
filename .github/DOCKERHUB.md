@@ -1,6 +1,6 @@
 # Domain Monitor
 
-Self-hosted monitoring for domain expiry, SSL certificates and DNS changes, with alerts by email, Telegram, Discord, Slack, Mattermost, Pushover and webhooks.
+Self-hosted monitoring for domain expiry, SSL certificates and DNS changes, with alerts by email, Telegram, Discord, Slack, Mattermost, Pushover, Gotify, ntfy, WhatsApp (WACRM), SMS (MSG91) and webhooks.
 
 Source, issues and full docs: [github.com/ispgrid/domain-monitor](https://github.com/ispgrid/domain-monitor)
 

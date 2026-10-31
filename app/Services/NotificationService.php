@@ -26,6 +26,10 @@ class NotificationService
             'mattermost' => new MattermostChannel(),
             'webhook' => new WebhookChannel(),
             'pushover' => new PushoverChannel(),
+            'gotify' => new \App\Services\Channels\GotifyChannel(),
+            'ntfy' => new \App\Services\Channels\NtfyChannel(),
+            'wacrm' => new \App\Services\Channels\WacrmChannel(),
+            'msg91' => new \App\Services\Channels\Msg91Channel(),
         ];
     }
 

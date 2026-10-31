@@ -10,6 +10,21 @@ use App\Services\Channels\WebhookUrlGuard;
 
 class NotificationGroupController extends Controller
 {
+    // Channel types and their names, in the order the form lists them
+    public const CHANNEL_NAMES = [
+        'email' => 'Email',
+        'telegram' => 'Telegram',
+        'discord' => 'Discord',
+        'slack' => 'Slack',
+        'mattermost' => 'Mattermost',
+        'pushover' => 'Pushover',
+        'gotify' => 'Gotify',
+        'ntfy' => 'ntfy',
+        'wacrm' => 'WACRM (WhatsApp)',
+        'msg91' => 'MSG91 (SMS)',
+        'webhook' => 'Webhook',
+    ];
+
     private NotificationGroup $groupModel;
     private NotificationChannel $channelModel;
 
@@ -212,7 +227,7 @@ class NotificationGroupController extends Controller
         $userId = \Core\Auth::id();
         $logger->info('Notification groups import started', ['user_id' => $userId]);
 
-        $validChannelTypes = ['email', 'telegram', 'discord', 'slack', 'mattermost', 'webhook', 'pushover'];
+        $validChannelTypes = array_keys(self::CHANNEL_NAMES);
 
         if (!isset($_FILES['import_file']) || $_FILES['import_file']['error'] !== UPLOAD_ERR_OK) {
             $logger->warning('No valid file uploaded for groups import');
@@ -385,7 +400,7 @@ class NotificationGroupController extends Controller
     private function maskChannelConfig(string $type, array $config): array
     {
         $masked = $config;
-        $sensitiveKeys = ['bot_token', 'api_token', 'user_key', 'pushover_api_token', 'pushover_user_key'];
+        $sensitiveKeys = ['bot_token', 'api_token', 'user_key', 'pushover_api_token', 'pushover_user_key', 'app_token', 'access_token', 'password', 'api_key', 'auth_key', 'topic'];
         $urlKeys = ['webhook_url', 'discord_webhook_url', 'slack_webhook_url', 'mattermost_webhook_url'];
 
         foreach ($sensitiveKeys as $key) {
@@ -518,7 +533,8 @@ class NotificationGroupController extends Controller
         $this->view('groups/edit', [
             'group' => $group,
             'title' => 'Edit Group: ' . $group['name'],
-            'alertTypes' => NotificationGroup::ALERT_TYPES
+            'alertTypes' => NotificationGroup::ALERT_TYPES,
+            'channelNames' => self::CHANNEL_NAMES
         ]);
     }
 
@@ -674,6 +690,18 @@ class NotificationGroupController extends Controller
                 case 'pushover':
                     $missingField = empty($_POST['pushover_api_token']) ? 'API token' : 'user key';
                     break;
+                case 'gotify':
+                    $missingField = 'server URL or application token';
+                    break;
+                case 'ntfy':
+                    $missingField = 'topic (letters, numbers, - and _ only)';
+                    break;
+                case 'wacrm':
+                    $missingField = 'WACRM URL, API key, phone number or template name';
+                    break;
+                case 'msg91':
+                    $missingField = 'auth key, template ID or mobile number';
+                    break;
             }
             
             $_SESSION['error'] = "Invalid channel configuration: Missing {$missingField}";
@@ -681,9 +709,9 @@ class NotificationGroupController extends Controller
             return;
         }
 
-        $urlError = isset($config['webhook_url']) ? WebhookUrlGuard::check($config['webhook_url']) : null;
+        $urlError = self::channelUrlError($config);
         if ($urlError !== null) {
-            $_SESSION['error'] = "Invalid webhook URL: {$urlError}";
+            $_SESSION['error'] = $urlError;
             $this->redirect("/groups/$groupId/edit");
             return;
         }
@@ -802,13 +830,13 @@ class NotificationGroupController extends Controller
             }
         }
 
-        $urlError = isset($config['webhook_url']) ? WebhookUrlGuard::check($config['webhook_url']) : null;
+        $urlError = self::channelUrlError($config);
         if ($urlError !== null) {
             if ($isAjax) {
                 http_response_code(400);
-                echo json_encode(['success' => false, 'message' => "Invalid webhook URL: {$urlError}"]);
+                echo json_encode(['success' => false, 'message' => $urlError]);
             } else {
-                $_SESSION['error'] = "Invalid webhook URL: {$urlError}";
+                $_SESSION['error'] = $urlError;
                 $groupId = $_POST['group_id'] ?? 0;
                 $this->redirect($groupId ? "/groups/$groupId/edit" : '/groups');
             }
@@ -823,7 +851,10 @@ class NotificationGroupController extends Controller
             $success = $notificationService->send($channelType, $config, $testMessage, $testData);
 
             if ($success) {
-                $message = "Test message sent successfully to {$channelType} channel! Check your {$channelType} for the test notification.";
+                $name = self::CHANNEL_NAMES[$channelType] ?? $channelType;
+                $message = $channelType === 'msg91'
+                    ? "MSG91 accepted the test SMS. MSG91 checks the template and numbers afterwards, so see its delivery report if nothing arrives."
+                    : "Test message sent successfully to the {$name} channel! Check {$name} for the test notification.";
                 if ($isAjax) {
                     echo json_encode(['success' => true, 'message' => $message]);
                     return;
@@ -831,7 +862,7 @@ class NotificationGroupController extends Controller
                     $_SESSION['success'] = $message;
                 }
             } else {
-                $message = "Failed to send test message to {$channelType} channel. Please check your configuration and try again.";
+                $message = "Failed to send test message to the " . (self::CHANNEL_NAMES[$channelType] ?? $channelType) . " channel. Please check your configuration and try again.";
                 if ($isAjax) {
                     http_response_code(400);
                     echo json_encode(['success' => false, 'message' => $message]);
@@ -865,17 +896,7 @@ class NotificationGroupController extends Controller
 
     private function getTestMessage(string $channelType): string
     {
-        $channelNames = [
-            'email' => 'Email',
-            'telegram' => 'Telegram',
-            'discord' => 'Discord',
-            'slack' => 'Slack',
-            'mattermost' => 'Mattermost',
-            'pushover' => 'Pushover',
-            'webhook' => 'Webhook'
-        ];
-
-        $channelName = $channelNames[$channelType] ?? ucfirst($channelType);
+        $channelName = self::CHANNEL_NAMES[$channelType] ?? ucfirst($channelType);
         
         return "🧪 **Test Message from " . \App\Models\Setting::appName() . "**\n\n" .
                "This is a test notification to verify your {$channelName} channel configuration.\n\n" .
@@ -894,9 +915,96 @@ class NotificationGroupController extends Controller
         ];
     }
 
+    /**
+     * The URL a self-hosted or webhook channel posts to must be reachable and allowed (no private addresses unless enabled)
+     */
+    private static function channelUrlError(array $config): ?string
+    {
+        foreach (['webhook_url' => 'webhook URL', 'server_url' => 'server URL', 'base_url' => 'WACRM URL'] as $key => $label) {
+            if (!empty($config[$key]) && ($error = WebhookUrlGuard::check($config[$key])) !== null) {
+                return "Invalid {$label}: {$error}";
+            }
+        }
+        return null;
+    }
+
+    /**
+     * A http(s) URL without a trailing slash, or null
+     */
+    private static function serverUrl(string $url): ?string
+    {
+        $url = rtrim(trim($url), '/');
+        return filter_var($url, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $url) ? $url : null;
+    }
+
     private function buildChannelConfig(string $type, array $data): ?array
     {
         switch ($type) {
+            case 'gotify':
+                $server = self::serverUrl($data['gotify_server_url'] ?? '');
+                $token = trim($data['gotify_app_token'] ?? '');
+                if (!$server || $token === '') {
+                    return null;
+                }
+                $config = ['server_url' => $server, 'app_token' => $token];
+                $priority = trim($data['gotify_priority'] ?? '');
+                if ($priority !== '' && ctype_digit($priority) && (int)$priority <= 10) {
+                    $config['priority'] = (int)$priority;
+                }
+                return $config;
+
+            case 'ntfy':
+                $server = trim($data['ntfy_server_url'] ?? '') === '' ? \App\Services\Channels\NtfyChannel::DEFAULT_SERVER : self::serverUrl($data['ntfy_server_url']);
+                $topic = trim($data['ntfy_topic'] ?? '');
+                if (!$server || !preg_match('/^[A-Za-z0-9_-]{1,64}$/', $topic)) {
+                    return null;
+                }
+                $config = ['server_url' => $server, 'topic' => $topic];
+                foreach (['access_token', 'username', 'password'] as $key) {
+                    $value = trim($data['ntfy_' . $key] ?? '');
+                    if ($value !== '') {
+                        $config[$key] = $value;
+                    }
+                }
+                $priority = trim($data['ntfy_priority'] ?? '');
+                if (in_array($priority, ['1', '2', '3', '4', '5'], true)) {
+                    $config['priority'] = (int)$priority;
+                }
+                return $config;
+
+            case 'wacrm':
+                $base = self::serverUrl($data['wacrm_base_url'] ?? '');
+                $apiKey = trim($data['wacrm_api_key'] ?? '');
+                $numbers = \App\Services\Channels\ChannelText::phoneNumbers($data['wacrm_recipients'] ?? '');
+                $mode = ($data['wacrm_mode'] ?? 'template') === 'text' ? 'text' : 'template';
+                $template = trim($data['wacrm_template_name'] ?? '');
+                if (!$base || $apiKey === '' || !$numbers || ($mode === 'template' && !preg_match('/^[a-z0-9_]{1,512}$/', $template))) {
+                    return null;
+                }
+                $config = ['base_url' => $base, 'api_key' => $apiKey, 'recipients' => '+' . implode(', +', $numbers), 'mode' => $mode];
+                if ($mode === 'template') {
+                    $language = trim($data['wacrm_template_language'] ?? '');
+                    $config['template_name'] = $template;
+                    $config['template_language'] = preg_match('/^[a-z]{2,3}(_[A-Za-z]{2,4})?$/', $language) ? $language : 'en_US';
+                }
+                return $config;
+
+            case 'msg91':
+                $authKey = trim($data['msg91_auth_key'] ?? '');
+                $templateId = trim($data['msg91_template_id'] ?? '');
+                $numbers = \App\Services\Channels\ChannelText::phoneNumbers($data['msg91_recipients'] ?? '');
+                if ($authKey === '' || !preg_match('/^[A-Za-z0-9]{6,64}$/', $templateId) || !$numbers) {
+                    return null;
+                }
+                $config = ['auth_key' => $authKey, 'template_id' => $templateId, 'recipients' => implode(', ', $numbers)];
+                foreach (['domain_var' => 'var1', 'alert_var' => 'var2'] as $key => $default) {
+                    $name = trim($data['msg91_' . $key] ?? '');
+                    $config[$key] = preg_match('/^[A-Za-z0-9_]{1,30}$/', $name) ? $name : $default;
+                }
+                $max = (int)($data['msg91_max_length'] ?? 0);
+                $config['max_length'] = $max >= 10 && $max <= 200 ? $max : \App\Services\Channels\Msg91Channel::DEFAULT_MAX_LENGTH;
+                return $config;
+
             case 'email':
                 $email = trim($data['email'] ?? '');
                 if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
