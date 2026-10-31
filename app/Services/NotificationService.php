@@ -29,6 +29,7 @@ class NotificationService
             'gotify' => new \App\Services\Channels\GotifyChannel(),
             'ntfy' => new \App\Services\Channels\NtfyChannel(),
             'wacrm' => new \App\Services\Channels\WacrmChannel(),
+            'waha' => new \App\Services\Channels\WahaChannel(),
             'msg91' => new \App\Services\Channels\Msg91Channel(),
         ];
     }

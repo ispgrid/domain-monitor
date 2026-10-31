@@ -286,7 +286,7 @@ ON DUPLICATE KEY UPDATE color = VALUES(color), description = VALUES(description)
 CREATE TABLE IF NOT EXISTS notification_channels (
     id INT AUTO_INCREMENT PRIMARY KEY,
     notification_group_id INT NOT NULL,
-    channel_type ENUM('email', 'telegram', 'discord', 'slack', 'mattermost', 'webhook', 'pushover', 'gotify', 'ntfy', 'wacrm', 'msg91') NOT NULL,
+    channel_type ENUM('email', 'telegram', 'discord', 'slack', 'mattermost', 'webhook', 'pushover', 'gotify', 'ntfy', 'wacrm', 'waha', 'msg91') NOT NULL,
     channel_config JSON NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

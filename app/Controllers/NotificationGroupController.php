@@ -21,6 +21,7 @@ class NotificationGroupController extends Controller
         'gotify' => 'Gotify',
         'ntfy' => 'ntfy',
         'wacrm' => 'WACRM (WhatsApp)',
+        'waha' => 'WAHA (WhatsApp)',
         'msg91' => 'MSG91 (SMS)',
         'webhook' => 'Webhook',
     ];
@@ -702,6 +703,9 @@ class NotificationGroupController extends Controller
                 case 'msg91':
                     $missingField = 'auth key, template ID or mobile number';
                     break;
+                case 'waha':
+                    $missingField = 'WAHA URL or a phone number / group ID';
+                    break;
             }
             
             $_SESSION['error'] = "Invalid channel configuration: Missing {$missingField}";
@@ -920,7 +924,7 @@ class NotificationGroupController extends Controller
      */
     private static function channelUrlError(array $config): ?string
     {
-        foreach (['webhook_url' => 'webhook URL', 'server_url' => 'server URL', 'base_url' => 'WACRM URL'] as $key => $label) {
+        foreach (['webhook_url' => 'webhook URL', 'server_url' => 'server URL', 'base_url' => 'server URL'] as $key => $label) {
             if (!empty($config[$key]) && ($error = WebhookUrlGuard::check($config[$key])) !== null) {
                 return "Invalid {$label}: {$error}";
             }
@@ -986,6 +990,20 @@ class NotificationGroupController extends Controller
                     $language = trim($data['wacrm_template_language'] ?? '');
                     $config['template_name'] = $template;
                     $config['template_language'] = preg_match('/^[a-z]{2,3}(_[A-Za-z]{2,4})?$/', $language) ? $language : 'en_US';
+                }
+                return $config;
+
+            case 'waha':
+                $base = self::serverUrl($data['waha_base_url'] ?? '');
+                $chats = \App\Services\Channels\WahaChannel::chatIds($data['waha_recipients'] ?? '');
+                $session = trim($data['waha_session'] ?? '');
+                if (!$base || !$chats || ($session !== '' && !preg_match('/^[A-Za-z0-9_-]{1,64}$/', $session))) {
+                    return null;
+                }
+                $config = ['base_url' => $base, 'recipients' => implode(', ', $chats), 'session' => $session ?: \App\Services\Channels\WahaChannel::DEFAULT_SESSION];
+                $apiKey = trim($data['waha_api_key'] ?? '');
+                if ($apiKey !== '') {
+                    $config['api_key'] = $apiKey;
                 }
                 return $config;
 

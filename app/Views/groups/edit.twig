@@ -5,9 +5,9 @@
 {% set pageDescription = group.name %}
 {% set pageIcon = 'fas fa-edit' %}
 
-{% set channelIcons = { email: 'fa-envelope', telegram: 'fa-telegram', discord: 'fa-discord', slack: 'fa-slack', mattermost: 'fa-comments', pushover: 'fa-mobile-alt', gotify: 'fa-bell', ntfy: 'fa-bullhorn', wacrm: 'fa-whatsapp', msg91: 'fa-sms', webhook: 'fa-link' } %}
-{% set channelIconPrefixes = { email: 'fas', telegram: 'fab', discord: 'fab', slack: 'fab', mattermost: 'fas', pushover: 'fas', gotify: 'fas', ntfy: 'fas', wacrm: 'fab', msg91: 'fas', webhook: 'fas' } %}
-{% set channelColors = { email: 'blue', telegram: 'blue', discord: 'indigo', slack: 'teal', mattermost: 'green', pushover: 'red', gotify: 'sky', ntfy: 'emerald', wacrm: 'green', msg91: 'orange', webhook: 'purple' } %}
+{% set channelIcons = { email: 'fa-envelope', telegram: 'fa-telegram', discord: 'fa-discord', slack: 'fa-slack', mattermost: 'fa-comments', pushover: 'fa-mobile-alt', gotify: 'fa-bell', ntfy: 'fa-bullhorn', wacrm: 'fa-whatsapp', waha: 'fa-whatsapp', msg91: 'fa-sms', webhook: 'fa-link' } %}
+{% set channelIconPrefixes = { email: 'fas', telegram: 'fab', discord: 'fab', slack: 'fab', mattermost: 'fas', pushover: 'fas', gotify: 'fas', ntfy: 'fas', wacrm: 'fab', waha: 'fab', msg91: 'fas', webhook: 'fas' } %}
+{% set channelColors = { email: 'blue', telegram: 'blue', discord: 'indigo', slack: 'teal', mattermost: 'green', pushover: 'red', gotify: 'sky', ntfy: 'emerald', wacrm: 'green', waha: 'lime', msg91: 'orange', webhook: 'purple' } %}
 
 {# One labelled input of the newer channel forms; "required" fields are checked before Add and Test #}
 {% macro field(name, label, opts = {}) %}
@@ -159,6 +159,8 @@
                                     {{ config.server_url|default('https://ntfy.sh')|replace({'https://': '', 'http://': ''}) }}/{{ config.topic|default('')|slice(0, 4) }}...
                                 {% elseif channel.channel_type == 'wacrm' %}
                                     {{ config.recipients|default('')|split(',')|length }} number(s), {{ config.mode|default('template') == 'text' ? 'plain text' : 'template ' ~ config.template_name|default('') }}
+                                {% elseif channel.channel_type == 'waha' %}
+                                    {{ config.recipients|default('')|split(',')|length }} chat(s), session {{ config.session|default('default') }}
                                 {% elseif channel.channel_type == 'msg91' %}
                                     {{ config.recipients|default('')|split(',')|length }} number(s), template {{ config.template_id|default('') }}
                                 {% elseif channel.channel_type == 'webhook' %}
@@ -225,6 +227,7 @@
                             <option value="gotify">Gotify</option>
                             <option value="ntfy">ntfy</option>
                             <option value="wacrm">WACRM (WhatsApp)</option>
+                            <option value="waha">WAHA (WhatsApp)</option>
                             <option value="msg91">MSG91 (SMS)</option>
                             <option value="webhook">Webhook (Custom)</option>
                         </select>
@@ -445,6 +448,14 @@
                             {{ f.field('wacrm_template_name', 'Template name', {placeholder: 'domain_alert', help: 'An approved template with one variable in its body, e.g. <code>Domain Monitor alert: {{1}}</code>. The alert goes into it on one line.'}) }}
                             {{ f.field('wacrm_template_language', 'Template language', {value: 'en_US', placeholder: 'en_US'}) }}
                         </div>
+                    </div>
+
+                    {# WAHA Fields #}
+                    <div id="waha_fields" class="hidden space-y-4 extra-channel-fields">
+                        {{ f.field('waha_base_url', 'WAHA URL', {required: true, placeholder: 'http://waha.example.com:3000'}) }}
+                        {{ f.field('waha_api_key', 'API key', {help: 'The <code>WAHA_API_KEY</code> set on your WAHA server (sent as <code>X-Api-Key</code>). Leave empty only if the server has no key.'}) }}
+                        {{ f.field('waha_session', 'Session', {value: 'default', placeholder: 'default', help: 'The WAHA session (linked WhatsApp account) to send from.'}) }}
+                        {{ f.field('waha_recipients', 'Phone numbers or group IDs', {required: true, textarea: true, placeholder: '919876543210, 120363012345678901@g.us', help: 'Numbers with the country code, or WhatsApp group IDs ending in <code>@g.us</code>, separated by commas. WAHA sends from a linked WhatsApp account, so plain text works without templates.'}) }}
                     </div>
 
                     {# MSG91 Fields #}
@@ -892,6 +903,7 @@ function testChannel(channelType, existingConfig = null) {
             case 'gotify':
             case 'ntfy':
             case 'wacrm':
+            case 'waha':
             case 'msg91':
                 // Saved settings go back under their form names, e.g. topic -> ntfy_topic
                 Object.keys(existingConfig).forEach(function (key) {
@@ -937,6 +949,7 @@ function testChannel(channelType, existingConfig = null) {
             case 'gotify':
             case 'ntfy':
             case 'wacrm':
+            case 'waha':
             case 'msg91':
                 document.querySelectorAll('#' + channelType + '_fields [name]').forEach(function (input) {
                     formData.append(input.name, input.value);
