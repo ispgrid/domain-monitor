@@ -86,6 +86,8 @@ The application includes built-in authentication with secure practices:
 - 🚨 **Remote Session Control** - Terminate suspicious sessions from any device
 - 💉 **SQL Injection Protection** - All queries use prepared statements
 - 🔒 **One-time Credentials** - Admin password shown only once during setup
+- 🗝️ **Setup Code** - The web installer asks for a one-time code stored on the server, so nobody who merely reaches a fresh install can create the first admin
+- 🚪 **Instant Sign-out** - Disabling a user, changing their role or resetting a password applies to sessions that are already open, not just the next sign-in
 - 🍪 **Secure Remember Me** - Cryptographically secure 30-day tokens linked to sessions
 - 👆 **Passkeys** - Sign in with a fingerprint, face, device PIN or security key (Profile → Passkeys). Needs HTTPS, and a passkey only works on the address it was added on. Admins can turn passkeys off in Settings → Security
 
@@ -162,10 +164,11 @@ php -S localhost:8000 -t public
 Then visit: `http://localhost:8000`
 
 The web installer will:
-1. ✅ Create all database tables
-2. ✅ Generate encryption key and save to `.env`
-3. ✅ Let you set admin email and password
-4. ✅ Show credentials on completion (save them!)
+1. ✅ Ask for the setup code from the file `.setup-code` in the app folder (or `logs/.setup-code` when the app folder isn't writable): `cat .setup-code`. This proves you have access to the server. The file is deleted when the installation is done
+2. ✅ Create all database tables
+3. ✅ Generate encryption key and save to `.env`
+4. ✅ Let you set admin email and password
+5. ✅ Show credentials on completion (save them!)
 
 **⚠️ IMPORTANT:** The installer will display your admin credentials **only once**. Save them to a secure password manager!
 
@@ -220,6 +223,10 @@ A ready-made image is published for each release on Docker Hub as [`ispgrid/doma
 3. Start it, then open `http://SERVER_IP:8080` to run the installer:
    ```bash
    docker compose up -d
+   ```
+4. The installer asks for a setup code. It's printed in the container log:
+   ```bash
+   docker compose logs app | grep "Setup code"
    ```
 
 **Updating:** `docker compose pull && docker compose up -d`, then open **Database update** if the new version asks for it. **Settings → Updates** shows these steps instead of the update button, since the image is replaced as a whole. Back up the database first:
@@ -748,6 +755,10 @@ Domain Monitor/
 4. **Enable HTTPS** in production
 5. **Protect cron endpoints** - Ensure cron scripts aren't web-accessible
 6. **Regular updates** - Keep dependencies updated
+7. **Give accounts only to people you trust** - Every user can add domains and SSL checks for hosts under them, and those checks connect from your server, so they can reach hosts on its network
+8. **Install the PHP cURL extension** - Webhook, Gotify, ntfy, WACRM and WAHA requests use it to connect only to the address that was checked. Without it they still work, with that check done once before connecting
+9. **Keep backups private** - The updater saves database backups in `backups/`. On a server shared with other users, run `chmod 700 backups` so only its owner can read them
+10. **Rolling back across a release that changed PHP packages** - Run `composer install --no-dev` afterwards; the rollback restores the app's files but not `vendor/`
 
 ## 🐛 Troubleshooting
 

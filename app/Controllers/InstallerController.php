@@ -310,7 +310,10 @@ class InstallerController extends Controller
         }
         
         $this->view('installer/welcome', [
-            'title' => 'Install Domain Monitor'
+            'title' => 'Install Domain Monitor',
+            'setupCodeReady' => \App\Helpers\SetupCode::ensure() !== null,
+            'setupCodeFile' => \App\Helpers\SetupCode::displayPath(),
+            'isDocker' => \App\Helpers\DeploymentHelper::isDocker(),
         ]);
     }
     
@@ -360,6 +363,14 @@ class InstallerController extends Controller
         if ($this->isInstalled()) {
             $_SESSION['error'] = 'System is already installed. Use the update function instead.';
             $this->redirect('/');
+            return;
+        }
+
+        // Only someone who can read the server's files may create the first admin
+        if (!\App\Helpers\SetupCode::matches((string)($_POST['setup_code'] ?? ''))) {
+            $this->logger->warning('Installer: wrong setup code', ['ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown']);
+            $_SESSION['error'] = 'The setup code is not correct. Copy it from the file ' . \App\Helpers\SetupCode::displayPath() . ' on the server.';
+            $this->redirect('/install');
             return;
         }
         
@@ -569,6 +580,9 @@ class InstallerController extends Controller
             $installedFile = __DIR__ . '/../../.installed';
             file_put_contents($installedFile, date('Y-m-d H:i:s'));
             $this->logger->info("Installation flag file created");
+
+            // The setup code has done its job
+            \App\Helpers\SetupCode::remove();
             
             // Create welcome notification for admin
             try {

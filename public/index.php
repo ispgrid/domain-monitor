@@ -66,6 +66,7 @@ try {
     }
     throw $e;
 }
+ErrorHandler::refreshEnvironment();
 
 // API requests authenticate with a token and never get a session (no cookie, no session row per call)
 $isApiRequest = (bool)preg_match('#^/api/v1(/|$)#', (string)parse_url($requestUri, PHP_URL_PATH));

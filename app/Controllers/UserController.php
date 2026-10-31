@@ -5,6 +5,7 @@ namespace App\Controllers;
 use Core\Controller;
 use Core\Auth;
 use App\Models\AuditLog;
+use App\Models\SessionManager;
 use App\Models\User;
 
 class UserController extends Controller
@@ -15,6 +16,18 @@ class UserController extends Controller
     {
         Auth::requireAdmin();
         $this->userModel = new User();
+    }
+
+    /**
+     * End a user's sessions and remember-me logins (failures are logged, never block the change itself)
+     */
+    private function revokeLogins(int $userId, ?string $keepSessionId = null): void
+    {
+        try {
+            (new SessionManager())->revokeUser($userId, $keepSessionId);
+        } catch (\Throwable $e) {
+            error_log("Could not end the sessions of user $userId: " . $e->getMessage());
+        }
     }
 
     /**
@@ -340,6 +353,13 @@ class UserController extends Controller
             return;
         }
 
+        // Disabling or demoting takes effect at once, so don't let an admin lock themselves out
+        if ((int)$userId === (int)Auth::id() && (!$isActive || $role !== $user['role'])) {
+            $_SESSION['error'] = 'You cannot deactivate your own account or change your own role';
+            $this->redirect("/users/$userId/edit");
+            return;
+        }
+
         // Check if email is taken by another user
         $existingUsers = $this->userModel->where('email', $email);
         if (!empty($existingUsers) && $existingUsers[0]['id'] != $userId) {
@@ -366,6 +386,14 @@ class UserController extends Controller
                     return;
                 }
                 $this->userModel->changePassword($userId, $password);
+                $this->userModel->invalidatePasswordResetTokens((int)$userId);
+            }
+
+            // A disabled account or a new password signs the user out on every device (an admin
+            // changing their own password stays signed in here)
+            if (!$isActive || !empty($password)) {
+                $keep = ((int)$userId === (int)Auth::id() && $isActive) ? session_id() : null;
+                $this->revokeLogins((int)$userId, $keep);
             }
 
             $changes = AuditLog::diff($user, $updateData);
@@ -469,6 +497,9 @@ class UserController extends Controller
         try {
             $newStatus = $user['is_active'] ? 0 : 1;
             $this->userModel->update($userId, ['is_active' => $newStatus]);
+            if (!$newStatus) {
+                $this->revokeLogins((int)$userId);
+            }
             AuditLog::record('user.status_changed', ($newStatus ? 'Activated' : 'Deactivated') . " user \"{$user['username']}\"", ['entity_type' => 'user', 'entity_id' => (int)$userId]);
 
             $_SESSION['success'] = 'User status updated successfully';
@@ -515,6 +546,9 @@ class UserController extends Controller
 
             try {
                 $this->userModel->update((int)$userId, ['is_active' => $newStatus]);
+                if (!$newStatus) {
+                    $this->revokeLogins((int)$userId);
+                }
                 $updatedCount++;
             } catch (\Exception $e) {
                 // Continue with next user

@@ -20,6 +20,7 @@ class ErrorHandler
     private ?ErrorLog $errorLogModel = null;
     private bool $isDevelopment;
     private bool $handling = false; // Recursion guard
+    private static ?self $global = null; // The instance register() installed
 
     public function __construct()
     {
@@ -377,11 +378,24 @@ class ErrorHandler
     }
 
     /**
+     * Re-read APP_ENV once .env is loaded. The global handlers are registered before that,
+     * so without this a production install would keep showing debug pages for errors that
+     * reach them (bootstrap failures, fatal errors).
+     */
+    public static function refreshEnvironment(): void
+    {
+        if (self::$global !== null) {
+            self::$global->isDevelopment = ($_ENV['APP_ENV'] ?? 'development') === 'development';
+        }
+    }
+
+    /**
      * Static helper to register global handlers
      */
     public static function register(): self
     {
         $handler = new self();
+        self::$global = $handler;
         
         // Set exception handler
         set_exception_handler([$handler, 'handleException']);

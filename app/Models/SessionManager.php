@@ -176,6 +176,24 @@ class SessionManager extends Model
     }
 
     /**
+     * Sign a user out everywhere: their sessions and remember-me tokens, optionally keeping one session
+     */
+    public function revokeUser(int $userId, ?string $keepSessionId = null): int
+    {
+        if ($keepSessionId) {
+            $stmt = $this->db->prepare(
+                "DELETE FROM remember_tokens WHERE user_id = ? AND (session_id IS NULL OR session_id != ?)"
+            );
+            $stmt->execute([$userId, $keepSessionId]);
+            return $this->deleteOtherSessions($userId, $keepSessionId);
+        }
+
+        $stmt = $this->db->prepare("DELETE FROM remember_tokens WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        return $this->deleteAllUserSessions($userId);
+    }
+
+    /**
      * Clean old sessions (older than session lifetime)
      */
     public function cleanOldSessions(int $lifetimeMinutes = 1440): int

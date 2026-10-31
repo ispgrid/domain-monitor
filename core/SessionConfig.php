@@ -9,6 +9,16 @@ namespace Core;
  */
 class SessionConfig
 {
+    private static bool $databaseSessions = false;
+
+    /**
+     * Whether sessions are stored in the database (false: PHP's file sessions)
+     */
+    public static function usesDatabase(): bool
+    {
+        return self::$databaseSessions;
+    }
+
     /**
      * Configure and initialize session handler
      * 
@@ -22,6 +32,7 @@ class SessionConfig
                 $sessionLifetime = (int)($_ENV['SESSION_LIFETIME'] ?? 1440);
                 $handler = new DatabaseSessionHandler($sessionLifetime);
                 session_set_save_handler($handler, true);
+                self::$databaseSessions = true;
             }
             // If not available, PHP will use default file-based sessions (no action needed)
         } catch (\Exception $e) {
@@ -43,22 +54,14 @@ class SessionConfig
                 return false;
             }
 
-            // Create PDO connection
-            $pdo = new \PDO(
-                "mysql:host={$_ENV['DB_HOST']};dbname={$_ENV['DB_DATABASE']}",
-                $_ENV['DB_USERNAME'],
-                $_ENV['DB_PASSWORD'],
-                [
-                    \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
-                    \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC
-                ]
-            );
-            
+            // The app's own connection, so DB_PORT and the other connection settings apply here too
+            $pdo = Database::getConnection();
+
             // Check if sessions table exists
             $stmt = $pdo->query("SHOW TABLES LIKE 'sessions'");
             return $stmt->rowCount() > 0;
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // Database not available or sessions table doesn't exist
             return false;
         }

@@ -3,6 +3,7 @@
 .env.local
 .env.*.local
 .installed
+.setup-code
 
 # Composer
 /vendor/

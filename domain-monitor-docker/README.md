@@ -2,7 +2,7 @@
 
 This directory contains Docker configuration for running Domain Monitor in a containerized environment.
 
-> **New installs:** use the published image instead (`ispgrid/domain-monitor`, see **Docker** in the main README). It has the cron jobs built in and keeps your data in one volume. This bootstrap setup keeps working for existing installs, and its code is a git clone, so the in-app updater still works here.
+> **New installs:** use the published image instead (`ispgrid/domain-monitor`, see **Docker** in the main README). It has the cron jobs built in and keeps your data in one volume. This bootstrap setup keeps working for existing installs. Its code belongs to root, so the in-app updater can't write to it: to update, run `sudo git -C app pull`, then `sudo ./bootstrap.sh` again (it re-applies the permissions and installs the PHP packages), then open `/install/update` in the browser.
 
 ## Quick Start
 

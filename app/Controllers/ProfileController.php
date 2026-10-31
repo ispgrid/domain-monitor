@@ -263,7 +263,17 @@ class ProfileController extends Controller
             $this->userModel->changePassword($userId, $newPassword);
             AuditLog::record('profile.password_changed', 'Changed own password');
 
-            $_SESSION['success'] = 'Password changed successfully';
+            // Other devices signed in with the old password are signed out; this one stays
+            $signedOut = 0;
+            try {
+                $this->userModel->invalidatePasswordResetTokens($userId);
+                $signedOut = $this->sessionModel->revokeUser($userId, session_id());
+            } catch (\Throwable $e) {
+                error_log('Could not end other sessions after a password change: ' . $e->getMessage());
+            }
+
+            $_SESSION['success'] = 'Password changed successfully'
+                . ($signedOut > 0 ? " ({$signedOut} other session(s) signed out)" : '');
             $this->redirect('/profile');
     }
 

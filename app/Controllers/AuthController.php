@@ -738,8 +738,15 @@ class AuthController extends Controller
             // Update password
             $this->userModel->changePassword($resetToken['user_id'], $password);
 
-            // Mark token as used using model
-            $this->userModel->markPasswordResetTokenAsUsed($resetToken['id']);
+            // This link and any other outstanding reset links for the account stop working
+            $this->userModel->invalidatePasswordResetTokens((int)$resetToken['user_id']);
+
+            // Whoever was signed in with the old password is signed out everywhere
+            try {
+                (new \App\Models\SessionManager())->revokeUser((int)$resetToken['user_id']);
+            } catch (\Throwable $e) {
+                error_log('Could not end sessions after a password reset: ' . $e->getMessage());
+            }
 
             $_SESSION['success'] = 'Password reset successfully! You can now log in.';
             $this->redirect('/login');

@@ -120,7 +120,11 @@ else
 fi
 
 if [[ ! -f "$DATA/.installed" ]]; then
-  log INFO "Not installed yet: open the app in your browser to run the installer"
+  if code="$(runuser -u www-data -- php "$APP/docker/setup-code.php" 2>&1)"; then
+    log INFO "Not installed yet: open the app in your browser to run the installer. Setup code: ${code}"
+  else
+    log INFO "Not installed yet: open the app in your browser to run the installer (${code})"
+  fi
 fi
 
 # --- Background jobs ------------------------------------------------------

@@ -224,6 +224,15 @@ class User extends Model
     }
 
     /**
+     * Mark every unused password reset token of a user as used
+     */
+    public function invalidatePasswordResetTokens(int $userId): bool
+    {
+        $stmt = $this->db->prepare("UPDATE password_reset_tokens SET used = 1 WHERE user_id = ? AND used = 0");
+        return $stmt->execute([$userId]);
+    }
+
+    /**
      * Create remember token
      */
     public function createRememberToken(int $userId, string $sessionId, string $token, string $expiresAt): bool
