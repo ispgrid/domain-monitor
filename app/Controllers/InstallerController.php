@@ -741,7 +741,9 @@ class InstallerController extends Controller
                     
                     // Fallback: detect "to" version from which migrations were run
                     if ($toVersion === $fromVersion) {
-                        if (in_array('047_update_app_version_v1.8.0.sql', $executed)) {
+                        if (in_array('048_add_alert_overrides_channels_v1.9.0.sql', $executed)) {
+                            $toVersion = '1.9.0';
+                        } elseif (in_array('047_update_app_version_v1.8.0.sql', $executed)) {
                             $toVersion = '1.8.0';
                         } elseif (in_array('046_update_app_version_v1.7.1.sql', $executed)) {
                             $toVersion = '1.7.1';

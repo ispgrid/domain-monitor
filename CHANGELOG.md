@@ -5,7 +5,7 @@ All notable changes to Domain Monitor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.9.0] - 2026-10-31
 
 ### Added
 - **Docker image** - Each release is published on Docker Hub as `ispgrid/domain-monitor` and as `ghcr.io/ispgrid/domain-monitor` (tags `X.Y.Z`, `X.Y` and `latest`, amd64 and arm64), with an example `docker-compose.yml` that adds MariaDB. Settings, uploads and logs live in a `/data` volume and survive updates. See **Docker** in the README

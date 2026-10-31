@@ -10,5 +10,9 @@ ALTER TABLE domains
 ALTER TABLE notification_channels
     MODIFY COLUMN channel_type ENUM('email', 'telegram', 'discord', 'slack', 'mattermost', 'webhook', 'pushover', 'gotify', 'ntfy', 'wacrm', 'waha', 'msg91') NOT NULL;
 
+UPDATE settings
+SET setting_value = '1.9.0'
+WHERE setting_key = 'app_version';
+
 INSERT INTO migrations (migration) VALUES ('048_add_alert_overrides_channels_v1.9.0.sql')
 ON DUPLICATE KEY UPDATE migration=migration;
