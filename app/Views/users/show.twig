@@ -1,6 +1,6 @@
 {% extends 'layout/base.twig' %}
 
-{% set title = (user.full_name) ~ ' - User Profile' %}
+{% set title = user.full_name|default(user.username) ~ ' - User Profile' %}
 {% set pageTitle = 'User Profile' %}
 {% set pageDescription = 'View user information and resources' %}
 {% set pageIcon = 'fas fa-user' %}
@@ -90,7 +90,7 @@
         <!-- User Info -->
         <div class="flex-1">
             <div class="flex items-center gap-3 mb-2">
-                <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">{{ user.full_name }}</h2>
+                <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">{{ user.full_name|default(user.username) }}</h2>
                 <!-- Role Badge -->
                 {{ role_badge(user.role, 'xs') }}
                 <!-- Status Badge -->

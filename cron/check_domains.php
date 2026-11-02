@@ -180,6 +180,9 @@ foreach ($domains as $domain) {
         logMessage("  ✓ Updated WHOIS data for $domainName");
         logMessage("    Expiration: " . ($whoisData['expiration_date'] ?? 'N/A') . ", Status: $status" . ($oldStatus !== $status ? " (was: $oldStatus)" : ""));
 
+        // Registrar, transfer lock or nameservers changed: possible transfer or hijack
+        \App\Services\OwnershipAlerts::check($domain, $whoisData, $status, 'logMessage');
+
         // Add a small delay between domain checks to avoid rate limiting
         // This helps especially with .nl and other TLDs that have strict rate limits
         usleep(1000000); // 1 second delay between checks
@@ -479,6 +482,8 @@ if (!empty($retryQueue)) {
                     $stats['updated']++;
 
                     notifyIfRenewed($domain, $expirationDate);
+
+                    \App\Services\OwnershipAlerts::check($domain, $whoisData, $status, 'logMessage');
                     
                     notifyExpiry($domain, $expirationDate, empty($whoisData['expiration_date']));
 

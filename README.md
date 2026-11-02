@@ -66,6 +66,8 @@ A modern PHP MVC application for monitoring domain expiration dates and sending 
 - 🕘 **DNS History** - Every record added, removed or changed, kept for a year, on the domain's DNS tab
 - ☁️ **Cloudflare DNS** - Compare your Cloudflare zones with public DNS and get alerted when they drift apart ([details](#-cloudflare-dns))
 - 🧩 **Your Columns** - Pick which columns the domain list shows
+- 🛡️ **Transfer and Hijack Alerts** - Get alerted when a domain's registrar changes, its transfer lock is removed or its WHOIS nameservers change (**Settings → Monitoring**)
+- 💓 **Health Check** - `/health` for uptime monitors such as Uptime Kuma: 200 when the app and database are up, 503 when the database is down
 
 ## 📋 Requirements
 
@@ -780,6 +782,15 @@ Domain Monitor/
 - Verify database credentials in `.env`
 - Ensure MySQL service is running
 - Check if database exists
+
+### Uptime Monitoring
+
+Point your uptime monitor at `https://your-domain/health`. It needs no login, starts no session and shows nothing private:
+- `200 {"status":"ok","database":"ok"}` when the app can reach its database
+- `503 {"status":"error","database":"error"}` when it can't
+- `200 {"status":"setup"}` before the web installer has run
+
+The Docker image uses it for its health check.
 
 ### Cron Job Not Running
 

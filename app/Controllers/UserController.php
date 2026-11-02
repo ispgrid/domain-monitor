@@ -272,7 +272,7 @@ class UserController extends Controller
         arsort($registrarCounts);
 
         $this->view('users/show', [
-            'title' => htmlspecialchars($user['full_name']) . ' - User Profile',
+            'title' => htmlspecialchars(\App\Models\User::displayName($user)) . ' - User Profile',
             'user' => $user,
             'domains' => $domains,
             'userDomainStats' => $userDomainStats,

@@ -49,7 +49,7 @@ VOLUME /data
 EXPOSE 80
 
 HEALTHCHECK --interval=1m --timeout=10s --start-period=1m \
-    CMD curl -fsS -o /dev/null http://127.0.0.1/ || exit 1
+    CMD curl -fsS -o /dev/null http://127.0.0.1/health || exit 1
 
 ENTRYPOINT ["/var/www/html/docker/entrypoint.sh"]
 CMD ["apache2-foreground"]

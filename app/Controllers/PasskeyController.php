@@ -70,7 +70,7 @@ class PasskeyController extends Controller
         unset($_SESSION['2fa_required'], $_SESSION['pending_remember']);
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['username'] = $user['username'];
-        $_SESSION['full_name'] = $user['full_name'];
+        $_SESSION['full_name'] = \App\Models\User::displayName($user);
         $_SESSION['email'] = $user['email'];
         $_SESSION['role'] = $user['role'];
 
@@ -95,7 +95,7 @@ class PasskeyController extends Controller
         }
         AuditLog::record('auth.login', 'Signed in with a passkey');
 
-        $_SESSION['success'] = 'Login successful! Welcome back, ' . htmlspecialchars($user['full_name']) . '.';
+        $_SESSION['success'] = 'Login successful! Welcome back, ' . htmlspecialchars(\App\Models\User::displayName($user)) . '.';
         $this->json(['redirect' => '/']);
     }
 

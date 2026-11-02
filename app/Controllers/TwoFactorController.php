@@ -321,7 +321,7 @@ class TwoFactorController extends Controller
             }
             \App\Models\AuditLog::record('auth.login', "Signed in with password and 2FA ($method)");
 
-            $_SESSION['success'] = 'Login successful! Welcome back, ' . htmlspecialchars($user['full_name']) . '.';
+            $_SESSION['success'] = 'Login successful! Welcome back, ' . htmlspecialchars(\App\Models\User::displayName($user)) . '.';
             $this->redirect('/');
         } else {
             // Notify user about failed 2FA attempt

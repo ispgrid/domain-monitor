@@ -341,7 +341,7 @@ class ProfileController extends Controller
             $this->userModel->updateEmailVerificationToken($userId, $token);
 
             // Send verification email
-            \App\Helpers\EmailHelper::sendVerificationEmail($user['email'], $user['full_name'], $token);
+            \App\Helpers\EmailHelper::sendVerificationEmail($user['email'], \App\Models\User::displayName($user), $token);
 
             $_SESSION['success'] = 'Verification email sent! Please check your inbox.';
             

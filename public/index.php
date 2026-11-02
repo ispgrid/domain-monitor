@@ -68,6 +68,11 @@ try {
 }
 ErrorHandler::refreshEnvironment();
 
+// Health check for uptime monitors: answered before any session or login
+if (parse_url($requestUri, PHP_URL_PATH) === '/health') {
+    \App\Services\HealthCheck::respond(__DIR__ . '/..');
+}
+
 // API requests authenticate with a token and never get a session (no cookie, no session row per call)
 $isApiRequest = (bool)preg_match('#^/api/v1(/|$)#', (string)parse_url($requestUri, PHP_URL_PATH));
 

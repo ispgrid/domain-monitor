@@ -137,7 +137,7 @@ class TwoFactorService
         $stmt->execute([$userId, $code, $expiresAt]);
 
         // Send email
-        $result = EmailHelper::sendTwoFactorCode($user['email'], $user['full_name'], $code);
+        $result = EmailHelper::sendTwoFactorCode($user['email'], \App\Models\User::displayName($user), $code);
 
         if ($result['success']) {
             $this->logger->info('2FA email code sent', [

@@ -9,6 +9,15 @@ class User extends Model
     protected static string $table = 'users';
 
     /**
+     * Name to show for a user: full name, or the username when it's empty
+     */
+    public static function displayName(array $user): string
+    {
+        $name = trim((string)($user['full_name'] ?? ''));
+        return $name !== '' ? $name : (string)($user['username'] ?? '');
+    }
+
+    /**
      * Find user by username
      */
     public function findByUsername(string $username): ?array

@@ -871,6 +871,8 @@ class DomainController extends Controller
             'whois_data' => json_encode($whoisData)
         ]);
 
+        \App\Services\OwnershipAlerts::check($domain, $whoisData, $status);
+
         $logger->info('WHOIS refresh completed', [
             'domain_id' => $id,
             'domain_name' => $domain['domain_name'],
@@ -1744,6 +1746,8 @@ class DomainController extends Controller
                 'status' => $status,
                 'whois_data' => json_encode($whoisData)
             ]);
+
+            \App\Services\OwnershipAlerts::check($domain, $whoisData, $status);
 
             $refreshed++;
         }

@@ -636,7 +636,7 @@ INSERT INTO settings (setting_key, setting_value, `type`, `description`) VALUES
 
 -- Monitoring settings
 ('notification_days_before', '60,30,21,14,7,5,3,2,1', 'string', 'Notification days before expiration'),
-('notification_status_triggers', 'available,registered,expired,redemption_period,pending_delete', 'string', 'Domain status changes that trigger notifications'),
+('notification_status_triggers', 'available,registered,expired,redemption_period,pending_delete,registrar_changed,transfer_unlocked', 'string', 'Domain status changes that trigger notifications'),
 ('check_interval_hours', '24', 'string', 'Domain check interval in hours'),
 ('last_check_run', NULL, 'datetime', 'Last time cron job ran'),
 ('webhook_allow_private', '0', 'boolean', 'Allow webhook channels to reach local and private network addresses'),

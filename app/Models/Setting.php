@@ -352,7 +352,7 @@ class Setting extends Model
      */
     public function getNotificationStatusTriggers(): array
     {
-        $value = $this->getValue('notification_status_triggers', 'available,registered,expired,redemption_period,pending_delete');
+        $value = $this->getValue('notification_status_triggers', 'available,registered,expired,redemption_period,pending_delete,registrar_changed,transfer_unlocked');
         return array_map('trim', explode(',', $value));
     }
 
@@ -361,7 +361,7 @@ class Setting extends Model
      */
     public function updateNotificationStatusTriggers(array $triggers): bool
     {
-        $validTriggers = ['available', 'registered', 'renewed', 'expired', 'redemption_period', 'pending_delete'];
+        $validTriggers = ['available', 'registered', 'renewed', 'expired', 'redemption_period', 'pending_delete', 'registrar_changed', 'transfer_unlocked', 'nameservers_changed'];
         $triggers = array_intersect($triggers, $validTriggers);
         $value = implode(',', $triggers);
         return $this->setValue('notification_status_triggers', $value);

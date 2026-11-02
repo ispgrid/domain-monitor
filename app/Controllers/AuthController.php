@@ -178,7 +178,7 @@ class AuthController extends Controller
             // User has 2FA enabled - require verification
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
-            $_SESSION['full_name'] = $user['full_name'];
+            $_SESSION['full_name'] = \App\Models\User::displayName($user);
             $_SESSION['email'] = $user['email'];
             $_SESSION['role'] = $user['role'];
             $_SESSION['2fa_required'] = true;
@@ -205,7 +205,7 @@ class AuthController extends Controller
         // Login successful - create session
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['username'] = $user['username'];
-        $_SESSION['full_name'] = $user['full_name'];
+        $_SESSION['full_name'] = \App\Models\User::displayName($user);
         $_SESSION['email'] = $user['email'];
         $_SESSION['role'] = $user['role'];
 
@@ -237,7 +237,7 @@ class AuthController extends Controller
         \App\Models\AuditLog::record('auth.login', 'Signed in with password');
 
         // Set success message for login
-        $_SESSION['success'] = 'Login successful! Welcome back, ' . htmlspecialchars($user['full_name']) . '.';
+        $_SESSION['success'] = 'Login successful! Welcome back, ' . htmlspecialchars(\App\Models\User::displayName($user)) . '.';
 
         // Redirect to dashboard
         $this->redirect('/');
@@ -538,7 +538,7 @@ class AuthController extends Controller
             $this->userModel->updateEmailVerificationToken($user['id'], $token);
 
             // Send verification email
-            $this->sendVerificationEmail($user['email'], $user['full_name'], $token);
+            $this->sendVerificationEmail($user['email'], \App\Models\User::displayName($user), $token);
 
             $_SESSION['success'] = 'Verification email sent! Please check your inbox.';
             $_SESSION['pending_verification_email'] = $email;
@@ -632,7 +632,7 @@ class AuthController extends Controller
                 $this->userModel->createPasswordResetToken($user['id'], $token, $expiresAt);
 
                 // Send reset email
-                $this->sendPasswordResetEmail($user['email'], $user['full_name'], $token);
+                $this->sendPasswordResetEmail($user['email'], \App\Models\User::displayName($user), $token);
             }
 
             $this->redirect('/forgot-password');
@@ -825,7 +825,7 @@ class AuthController extends Controller
                 if ($user && $user['is_active']) {
                     $_SESSION['user_id'] = $user['id'];
                     $_SESSION['username'] = $user['username'];
-                    $_SESSION['full_name'] = $user['full_name'];
+                    $_SESSION['full_name'] = \App\Models\User::displayName($user);
                     $_SESSION['email'] = $user['email'];
                     $_SESSION['role'] = $user['role'];
 

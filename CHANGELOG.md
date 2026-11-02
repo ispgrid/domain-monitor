@@ -5,6 +5,15 @@ All notable changes to Domain Monitor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Transfer and hijack alerts** - **Settings → Monitoring → Status Change Notifications** has three new switches: **Registrar Changed**, **Transfer Lock Removed** (`clientTransferProhibited` or `serverTransferProhibited` is gone) and **Nameservers Changed** (the nameservers listed in WHOIS). Each WHOIS check, by cron or with the refresh buttons, compares the result with the previous one and alerts the domain's group and in-app. Small differences in how registries write registrar names or status codes don't count, and watched domains are skipped. New installs have the first two on; existing installs can switch them on. They follow the status alert switch of the group or domain
+- **Health check** - `GET /health` answers `200 {"status":"ok"}` when the database is reachable and `503` when it isn't, without a login or a session, for uptime monitors. The Docker image's health check uses it, so it no longer starts a session every minute
+
+### Fixed
+- **Sign-in for users without a full name** - Users added outside the app (SQL, old imports) with an empty name got an error page when signing in, and couldn't get password reset or two-factor emails. The username is used instead
+
 ## [1.9.0] - 2026-10-31
 
 ### Added
