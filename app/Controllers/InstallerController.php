@@ -79,6 +79,7 @@ class InstallerController extends Controller
             '046_update_app_version_v1.7.1.sql',
             '047_update_app_version_v1.8.0.sql',
             '048_add_alert_overrides_channels_v1.9.0.sql',
+            '049_update_app_version_v1.10.0.sql',
         ];
 
         try {
@@ -244,6 +245,7 @@ class InstallerController extends Controller
                     '046_update_app_version_v1.7.1.sql',
                     '047_update_app_version_v1.8.0.sql',
                     '048_add_alert_overrides_channels_v1.9.0.sql',
+                    '049_update_app_version_v1.10.0.sql',
                 ];
             }
 
@@ -501,6 +503,7 @@ class InstallerController extends Controller
                     '046_update_app_version_v1.7.1.sql',
                     '047_update_app_version_v1.8.0.sql',
                     '048_add_alert_overrides_channels_v1.9.0.sql',
+                    '049_update_app_version_v1.10.0.sql',
                 ];
 
                 $stmt = $pdo->prepare("INSERT INTO migrations (migration) VALUES (?) ON DUPLICATE KEY UPDATE migration=migration");
@@ -741,7 +744,9 @@ class InstallerController extends Controller
                     
                     // Fallback: detect "to" version from which migrations were run
                     if ($toVersion === $fromVersion) {
-                        if (in_array('048_add_alert_overrides_channels_v1.9.0.sql', $executed)) {
+                        if (in_array('049_update_app_version_v1.10.0.sql', $executed)) {
+                            $toVersion = '1.10.0';
+                        } elseif (in_array('048_add_alert_overrides_channels_v1.9.0.sql', $executed)) {
                             $toVersion = '1.9.0';
                         } elseif (in_array('047_update_app_version_v1.8.0.sql', $executed)) {
                             $toVersion = '1.8.0';
