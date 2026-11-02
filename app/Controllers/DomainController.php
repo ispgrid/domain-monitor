@@ -2472,7 +2472,9 @@ class DomainController extends Controller
             $dnsService = new \App\Services\DnsService();
             $dnsModel = new \App\Models\DnsRecord();
 
-            $records = $dnsService->quickScan($domain['domain_name']);
+            // Known hosts too, or the snapshot would drop their records until the next check adds them back
+            $knownHosts = array_merge($dnsModel->getDistinctHosts($id), (new \App\Models\ProviderDnsZone())->hostsForDomain($id));
+            $records = $dnsService->quickScan($domain['domain_name'], $knownHosts);
             $totalRecords = array_sum(array_map('count', $records));
 
             $this->enrichIpDetails($records, $dnsService);

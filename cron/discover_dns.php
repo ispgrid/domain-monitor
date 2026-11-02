@@ -126,7 +126,8 @@ foreach ($domains as $domain) {
         }
 
         if ($quickMode) {
-            $newRecords = $dnsService->quickScan($domainName);
+            $knownHosts = array_merge($dnsModel->getDistinctHosts($domain['id']), (new ProviderDnsZone())->hostsForDomain($domain['id']));
+            $newRecords = $dnsService->quickScan($domainName, $knownHosts);
         } else {
             // Deep scan: gather crt.sh subdomains + existing hosts, then full lookup
             $existingHosts = $dnsModel->getDistinctHosts($domain['id']);

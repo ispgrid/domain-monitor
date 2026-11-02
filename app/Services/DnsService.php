@@ -158,10 +158,13 @@ class DnsService
      * Standard DNS lookup: root domain + resolve targets + special TXT.
      * No subdomain brute force, no crt.sh. Like running nslookup/dig.
      * Used by Discover > Quick Scan.
+     *
+     * $knownHosts: hosts found earlier (and the Cloudflare zone's names). They are looked up too,
+     * because the saved snapshot drops every record the scan didn't return.
      */
-    public function quickScan(string $domain): array
+    public function quickScan(string $domain, array $knownHosts = []): array
     {
-        $this->logger->info("DNS quick scan started", ['domain' => $domain]);
+        $this->logger->info("DNS quick scan started", ['domain' => $domain, 'known_hosts' => count($knownHosts)]);
 
         [$records, $seen] = $this->queryRootDomain($domain);
 
@@ -174,6 +177,15 @@ class DnsService
             $this->queryAndCollect($fqdn, DNS_CNAME, 'CNAME', $domain, $records, $seen);
             $this->queryAndCollect($fqdn, DNS_MX, 'MX', $domain, $records, $seen);
             $this->queryAndCollect($fqdn, DNS_TXT, 'TXT', $domain, $records, $seen);
+        }
+
+        // Known hosts, the same way Refresh DNS checks them (wildcard-only answers left out)
+        $knownHosts = array_values(array_diff(array_unique($knownHosts), $targetSubs, ['@', '']));
+        if ($knownHosts) {
+            $wildcard = $this->probeWildcard($domain);
+            foreach ($knownHosts as $sub) {
+                $this->collectHost("{$sub}.{$domain}", $domain, $records, $seen, $wildcard);
+            }
         }
 
         foreach (self::SPECIAL_TXT_SUBDOMAINS as $sub) {

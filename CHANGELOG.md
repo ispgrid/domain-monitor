@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Health check** - `GET /health` answers `200 {"status":"ok"}` when the database is reachable and `503` when it isn't, without a login or a session, for uptime monitors. The Docker image's health check uses it, so it no longer starts a session every minute
 
 ### Fixed
+- **DNS history: records removed and added back** - **Discover DNS → Quick** (and `discover_dns.php --quick`) only looked up the domain itself and the hosts its records point to, so records on other subdomains (found by a deep scan or in the Cloudflare zone, e.g. `mg` or `mailjet._domainkey`) showed as removed, and the next check added them back. A quick scan now also checks the hosts already known
 - **Sign-in for users without a full name** - Users added outside the app (SQL, old imports) with an empty name got an error page when signing in, and couldn't get password reset or two-factor emails. The username is used instead
 
 ## [1.9.0] - 2026-10-31
